@@ -1,0 +1,181 @@
+# Bug Bounty Framework Configuration
+# This is an example configuration file for the BBF.
+
+# Global configuration
+target: example.com  # Target domain or IP address
+output_dir: reports  # Directory to save reports and output files
+log_level: INFO      # Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+state_file: .bbf_state.json  # File to store framework state
+max_workers: 10      # Maximum number of concurrent workers
+
+# Stage configurations
+stages:
+  # Reconnaissance Stage - Information gathering
+  recon:
+    enabled: true
+    plugins:
+      - subdomain_enumeration
+      - dns_enumeration
+    timeout: 3600  # Timeout in seconds
+    continue_on_error: true  # Continue to next stage if this stage fails
+  
+  # Scanning Stage - Vulnerability scanning
+  scan:
+    enabled: true
+    plugins:
+      - port_scanning
+      - web_crawler
+    timeout: 7200
+    continue_on_error: true
+  
+  # Testing Stage - Vulnerability validation
+  test:
+    enabled: true
+    plugins:
+      - sql_injection
+      - xss
+      - ssrf
+    timeout: 10800
+    continue_on_error: false  # Stop if this stage fails
+  
+  # Reporting Stage - Generate reports
+  report:
+    enabled: true
+    plugins:
+      - html_report
+      - json_report
+    timeout: 1800
+    continue_on_error: true
+
+# Plugin configurations
+plugins:
+  # Subdomain Enumeration Plugin
+  subdomain_enumeration:
+    enabled: true
+    max_workers: 20
+    timeout: 5
+    rate_limit: 0.1  # Delay between requests in seconds
+    use_search_engines: true
+    use_cert_transparency: true
+    wordlist: null  # Path to custom wordlist file
+    recursive: false
+    max_recursion: 2
+  
+  # Port Scanning Plugin
+  port_scanning:
+    enabled: true
+    ports: '1-1024,3000-4000,8000-9000'  # Ports to scan
+    scan_technique: 'syn'  # syn, connect, or ack
+    timeout: 5
+    max_retries: 2
+    rate_limit: 100  # Packets per second
+    detect_service: true
+    os_detection: false
+    script_scan: null  # NSE script to run
+    default_scripts: false
+    script_args: null
+    exclude_ports: null
+  
+  # Web Crawler Plugin
+  web_crawler:
+    enabled: true
+    max_depth: 3
+    max_pages: 100
+    follow_external: false
+    respect_robots: true
+    user_agent: 'BBF Web Crawler/1.0'
+    include_patterns: []
+    exclude_patterns: ['logout', 'logout.php', 'logout.aspx', 'logoff']
+  
+  # SQL Injection Plugin
+  sql_injection:
+    enabled: true
+    risk: 3  # 1-3 (low to high)
+    confidence: 3  # 1-3 (low to high)
+    level: 1  # 1-5 (increasing thoroughness)
+    skip_static: true
+    skip_duplicate: true
+    timeout: 30
+    retries: 3
+  
+  # XSS Plugin
+  xss:
+    enabled: true
+    risk: 2
+    confidence: 2
+    level: 1
+    skip_static: true
+    skip_duplicate: true
+    timeout: 30
+    retries: 3
+  
+  # SSRF Plugin
+  ssrf:
+    enabled: true
+    risk: 3
+    confidence: 2
+    level: 1
+    skip_duplicate: true
+    timeout: 30
+    retries: 2
+  
+  # HTML Report Plugin
+  html_report:
+    enabled: true
+    output_file: 'report.html'
+    template: 'default'  # Path to custom template
+    include_screenshots: true
+    include_requests: false
+    include_responses: false
+  
+  # JSON Report Plugin
+  json_report:
+    enabled: true
+    output_file: 'report.json'
+    pretty: true
+    include_all: true
+
+# Custom headers for HTTP requests
+http_headers:
+  User-Agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+  Accept-Language: 'en-US,en;q=0.5'
+  DNT: '1'
+  Connection: 'keep-alive'
+  Upgrade-Insecure-Requests: '1'
+  Cache-Control: 'max-age=0'
+
+# Proxy configuration (optional)
+# proxy:
+#   http: 'http://localhost:8080'
+#   https: 'http://localhost:8080'
+#   no_proxy: 'localhost,127.0.0.1'
+
+# Authentication (examples, uncomment and configure as needed)
+# auth:
+#   # HTTP Basic Auth
+#   basic:
+#     username: 'admin'
+#     password: 'password'
+#     url: 'https://example.com/login'
+#   
+#   # OAuth2
+#   oauth2:
+#     client_id: 'your-client-id'
+#     client_secret: 'your-client-secret'
+#     token_url: 'https://example.com/oauth/token'
+#     scopes: ['read', 'write']
+#   
+#   # API Key
+#   api_key:
+#     key: 'your-api-key'
+#     header: 'X-API-Key'  # or 'query' for query parameter
+#     value: 'key'  # Parameter name if using query
+
+# Custom wordlists (paths to wordlist files)
+wordlists:
+  subdomains: 'wordlists/subdomains.txt'
+  directories: 'wordlists/directories.txt'
+  usernames: 'wordlists/usernames.txt'
+  passwords: 'wordlists/passwords.txt'
+  fuzz: 'wordlists/fuzz.txt'
