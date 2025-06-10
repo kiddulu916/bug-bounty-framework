@@ -47,7 +47,7 @@ from bbf.core.state import StateManager
 
 # Import stages
 from bbf.stages import (
-    BaseStage,
+    Stage,  # BaseStage is an alias for Stage
     ReconStage,
     ScanStage,
     TestStage,
@@ -61,7 +61,7 @@ __all__ = [
     'BasePlugin',
     'plugin',
     'StateManager',
-    'BaseStage',
+    'Stage',  # Exported as Stage, not BaseStage
     'ReconStage',
     'ScanStage',
     'TestStage',

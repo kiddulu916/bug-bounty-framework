@@ -11,8 +11,12 @@ from .scan import ScanStage
 from .test import TestStage
 from .report import ReportStage
 
+# For backward compatibility, export Stage as BaseStage
+BaseStage = Stage
+
 __all__ = [
     'Stage',
+    'BaseStage',  # For backward compatibility
     'ReconStage',
     'ScanStage',
     'TestStage',

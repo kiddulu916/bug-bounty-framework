@@ -41,6 +41,7 @@ dependencies = [
     "python-nmap>=0.7.1",
     "Jinja2>=3.0.0",
     "markdown2>=2.4.0",
+    "pydantic>=2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -62,10 +63,10 @@ defectdojo = ["defectdojo-api>=1.0.0"]
 
 [project.urls]
 Homepage = "https://github.com/kiddulu916/bug-bounty-framework"
-Bug Tracker = "https://github.com/kiddulu916/bug-bounty-framework/issues"
+Bug-Tracker = "https://github.com/kiddulu916/bug-bounty-framework/issues"
 
 [project.scripts]
-bbf = "bbf.__main__:main"
+bbf = "bbf.cli:main"
 
 [tool.black]
 line-length = 88
@@ -99,6 +100,14 @@ strict_equality = true
 max-line-length = 88
 extend-ignore = "E203, W503"
 max-complexity = 18
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+python_classes = ["Test*"]
+addopts = "-v"
+asyncio_mode = "auto"
 select = "B,C,E,F,W,T4,B9"
 
 [egg_info]
