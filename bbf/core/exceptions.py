@@ -15,11 +15,25 @@ __all__ = [
     'PluginLoadError',
     'PluginValidationError',
     'PluginNotFoundError',
+    'PluginTimeoutError',
+    'PluginResourceError',
+    'PluginVersionError',
+    'PluginSecurityError',
+    'PluginMetadataError',
+    'PluginCacheError',
+    'PluginStateError',
+    'PluginConfigError',
+    'PluginDiscoveryError',
+    'PluginLoadingError',
+    'PluginUnloadingError',
+    'PluginRegistrationError',
+    'PluginUnregistrationError',
     
     # Stage-related exceptions
     'StageError',
     'StageExecutionError',
     'StageNotEnabledError',
+    'StageValidationError',
     
     # State management exceptions
     'StateError',
@@ -34,6 +48,45 @@ __all__ = [
     'FrameworkError',
     'InitializationError',
     'ShutdownError',
+
+    # Service-related exceptions
+    'ServiceError',
+    'ServiceRegistrationError',
+    'ServiceDiscoveryError',
+    'ServiceHealthError',
+    'ServiceConfigError',
+
+    # Security-related exceptions
+    'SecurityError',
+    'AuthenticationError',
+    'AuthorizationError',
+    'RateLimitError',
+    'ValidationError',
+    'AuditError',
+
+    # Integration-related exceptions
+    'IntegrationError',
+    'ServiceConnectionError',
+    'ServiceTimeoutError',
+    'ServiceResponseError',
+    'CacheError',
+    'DatabaseError',
+    'MessageQueueError',
+    'EventBusError',
+
+    # Marketplace-related exceptions
+    'MarketplaceError',
+    'PluginInstallationError',
+    'PluginUpdateError',
+    'PluginVerificationError',
+    'PluginReviewError',
+    'PluginPackageError',
+
+    # Development tools-related exceptions
+    'DevToolsError',
+    'PluginTestError',
+    'PluginDocError',
+    'PluginProjectError',
 ]
 
 class BBFError(Exception):
@@ -70,8 +123,12 @@ class StageError(BBFError):
     """Base exception for stage-related errors."""
     pass
 
+class StageValidationError(StageError):
+    """Raised when stage validation fails."""
+    pass
+
 class StageExecutionError(StageError):
-    """Raised when a stage fails during execution."""
+    """Raised when stage execution fails."""
     pass
 
 class StageNotEnabledError(StageError):
@@ -111,4 +168,125 @@ class InitializationError(FrameworkError):
 
 class ShutdownError(FrameworkError):
     """Raised when there's an error during framework shutdown."""
+    pass
+
+# Service-related exceptions
+class ServiceError(Exception):
+    """Base exception for service-related errors."""
+    pass
+
+class ServiceRegistrationError(ServiceError):
+    """Raised when service registration fails."""
+    pass
+
+class ServiceDiscoveryError(ServiceError):
+    """Raised when service discovery fails."""
+    pass
+
+class ServiceHealthError(ServiceError):
+    """Raised when service health check fails."""
+    pass
+
+class ServiceConfigError(ServiceError):
+    """Raised when service configuration is invalid."""
+    pass
+
+# Security-related exceptions
+class SecurityError(Exception):
+    """Base exception for security-related errors."""
+    pass
+
+class AuthenticationError(SecurityError):
+    """Raised when authentication fails."""
+    pass
+
+class AuthorizationError(SecurityError):
+    """Raised when authorization fails."""
+    pass
+
+class RateLimitError(SecurityError):
+    """Raised when rate limit is exceeded."""
+    pass
+
+class ValidationError(SecurityError):
+    """Raised when input validation fails."""
+    pass
+
+class AuditError(SecurityError):
+    """Raised when audit logging fails."""
+    pass
+
+# Integration-related exceptions
+class IntegrationError(Exception):
+    """Base exception for integration-related errors."""
+    pass
+
+class ServiceConnectionError(IntegrationError):
+    """Raised when service connection fails."""
+    pass
+
+class ServiceTimeoutError(IntegrationError):
+    """Raised when service request times out."""
+    pass
+
+class ServiceResponseError(IntegrationError):
+    """Raised when service returns an error."""
+    pass
+
+class CacheError(IntegrationError):
+    """Raised when cache operation fails."""
+    pass
+
+class DatabaseError(IntegrationError):
+    """Raised when database operation fails."""
+    pass
+
+class MessageQueueError(IntegrationError):
+    """Raised when message queue operation fails."""
+    pass
+
+class EventBusError(IntegrationError):
+    """Raised when event bus operation fails."""
+    pass
+
+# Marketplace-related exceptions
+class MarketplaceError(Exception):
+    """Base exception for marketplace-related errors."""
+    pass
+
+class PluginInstallationError(MarketplaceError):
+    """Raised when plugin installation fails."""
+    pass
+
+class PluginUpdateError(MarketplaceError):
+    """Raised when plugin update fails."""
+    pass
+
+class PluginVerificationError(MarketplaceError):
+    """Raised when plugin verification fails."""
+    pass
+
+class PluginReviewError(MarketplaceError):
+    """Raised when plugin review operation fails."""
+    pass
+
+class PluginPackageError(MarketplaceError):
+    """Raised when plugin package operation fails."""
+    pass
+
+# Development tools-related exceptions
+class DevToolsError(Exception):
+    """Base exception for development tools-related errors."""
+    pass
+
+class PluginTestError(DevToolsError):
+    """Raised when plugin testing fails."""
+    pass
+
+class PluginDocError(DevToolsError):
+    """Raised when plugin documentation generation fails."""
+    pass
+
+class PluginProjectError(DevToolsError):
+    """Raised when plugin project operation fails."""
     pass

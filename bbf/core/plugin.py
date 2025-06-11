@@ -18,6 +18,8 @@ from bbf.core.exceptions import (
     PluginValidationError,
     PluginDependencyError
 )
+from bbf.core.validation import validate_plugin
+from bbf.core.metadata import PluginMetadataManager
 
 logger = logging.getLogger(__name__)
 
@@ -429,111 +431,213 @@ class BasePlugin(metaclass=abc.ABCMeta):
 
 class PluginRegistry:
     """
-    Registry for managing plugin classes.
+    Registry for managing plugin registration and discovery.
     
-    This class implements the singleton pattern to maintain a global registry
-    of all available plugins. Plugins are registered using the @plugin decorator.
+    This class provides functionality for:
+    - Registering and unregistering plugins
+    - Discovering and loading plugins
+    - Managing plugin dependencies
+    - Managing plugin metadata
     """
     
     _instance = None
     _plugins: Dict[str, Type[BasePlugin]] = {}
+    _enabled_plugins: Set[str] = set()
+    _plugin_metadata: PluginMetadataManager = PluginMetadataManager()
     
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(PluginRegistry, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
         return cls._instance
     
     @classmethod
-    def register(cls, plugin_class: Type[BasePlugin]) -> Type[BasePlugin]:
+    def register(cls, plugin_class: Type[BasePlugin]) -> None:
         """
-        Decorator to register a plugin class.
+        Register a plugin class.
+        
+        This method:
+        1. Validates the plugin class
+        2. Checks for duplicate registration
+        3. Initializes plugin metadata
+        4. Registers the plugin
         
         Args:
             plugin_class: The plugin class to register
             
-        Returns:
-            The registered plugin class
-            
         Raises:
-            PluginValidationError: If the plugin is invalid or a plugin with
-                                the same name is already registered
+            PluginValidationError: If plugin validation fails
+            PluginError: If plugin cannot be registered
         """
-        if not inspect.isclass(plugin_class):
-            raise PluginValidationError(f"Plugin must be a class, got {type(plugin_class)}")
+        try:
+            # Validate plugin
+            validate_plugin(plugin_class)
             
-        if not issubclass(plugin_class, BasePlugin):
-            raise PluginValidationError(
-                f"Plugin {plugin_class.__name__} must inherit from BasePlugin"
-            )
+            # Check if plugin is already registered
+            if plugin_class.name in cls._plugins:
+                raise PluginError(f"Plugin '{plugin_class.name}' is already registered")
             
-        if plugin_class is BasePlugin:
-            raise PluginValidationError("Cannot register BasePlugin class itself")
+            # Initialize plugin metadata
+            cls._plugin_metadata.get_metadata(plugin_class)
             
-        if not hasattr(plugin_class, 'name') or not plugin_class.name:
-            raise PluginValidationError(
-                f"Plugin class {plugin_class.__name__} must define a 'name' attribute"
-            )
+            # Register plugin
+            cls._plugins[plugin_class.name] = plugin_class
+            if plugin_class.enabled:
+                cls._enabled_plugins.add(plugin_class.name)
             
-        plugin_name = plugin_class.name
-        
-        # Validate plugin name format
-        if not isinstance(plugin_name, str) or not plugin_name.replace('_', '').isalnum():
-            raise PluginValidationError(
-                f"Plugin name '{plugin_name}' must contain only alphanumeric "
-                "characters and underscores"
-            )
-        
-        # Check for duplicate plugin names
-        if plugin_name in cls._plugins:
-            existing_plugin = cls._plugins[plugin_name]
-            if existing_plugin is not plugin_class:
-                raise PluginValidationError(
-                    f"Plugin name '{plugin_name}' is already registered by "
-                    f"{existing_plugin.__module__}.{existing_plugin.__name__}"
-                )
-        
-        # Register the plugin
-        cls._plugins[plugin_name] = plugin_class
-        logger.debug(
-            f"Registered plugin: {plugin_name} "
-            f"({plugin_class.__module__}.{plugin_class.__name__})"
-        )
+            logger.info(f"Registered plugin: {plugin_class.name} (version {plugin_class.version})")
             
-        return plugin_class
+        except Exception as e:
+            if isinstance(e, (PluginValidationError, PluginError)):
+                raise
+            raise PluginError(f"Failed to register plugin: {str(e)}")
     
     @classmethod
-    def get_plugin_class(cls, name: str) -> Type[BasePlugin]:
+    def unregister(cls, plugin_name: str) -> None:
         """
-        Get a plugin class by name.
+        Unregister a plugin.
         
         Args:
-            name: The name of the plugin to retrieve
-            
-        Returns:
-            The plugin class
+            plugin_name: Name of the plugin to unregister
             
         Raises:
-            KeyError: If no plugin with the given name is found
+            PluginError: If plugin cannot be unregistered
         """
-        if name not in cls._plugins:
-            raise KeyError(f"No plugin found with name: {name}")
-        return cls._plugins[name]
+        try:
+            if plugin_name not in cls._plugins:
+                raise PluginError(f"Plugin '{plugin_name}' is not registered")
+            
+            # Remove from enabled plugins if present
+            if plugin_name in cls._enabled_plugins:
+                cls._enabled_plugins.remove(plugin_name)
+            
+            # Remove from plugins
+            del cls._plugins[plugin_name]
+            
+            logger.info(f"Unregistered plugin: {plugin_name}")
+            
+        except Exception as e:
+            if isinstance(e, PluginError):
+                raise
+            raise PluginError(f"Failed to unregister plugin: {str(e)}")
     
     @classmethod
-    def get_available_plugins(cls) -> Dict[str, Type[BasePlugin]]:
+    def get_plugin(cls, plugin_name: str) -> Optional[Type[BasePlugin]]:
         """
-        Get all registered plugins.
+        Get a registered plugin by name.
+        
+        Args:
+            plugin_name: Name of the plugin to get
+            
+        Returns:
+            The plugin class if found, None otherwise
+        """
+        return cls._plugins.get(plugin_name)
+    
+    @classmethod
+    def get_enabled_plugins(cls) -> List[Type[BasePlugin]]:
+        """
+        Get all enabled plugins.
         
         Returns:
-            Dictionary mapping plugin names to plugin classes
+            List of enabled plugin classes
         """
-        return cls._plugins.copy()
+        return [cls._plugins[name] for name in cls._enabled_plugins]
     
     @classmethod
-    def clear_registry(cls):
-        """Clear all registered plugins (for testing purposes)."""
-        cls._plugins = {}
-        logger.debug("Plugin registry cleared")
+    def get_plugin_metadata(cls, plugin_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get metadata for a plugin.
+        
+        Args:
+            plugin_name: Name of the plugin to get metadata for
+            
+        Returns:
+            Plugin metadata if found, None otherwise
+        """
+        plugin = cls.get_plugin(plugin_name)
+        if plugin:
+            return cls._plugin_metadata.get_metadata(plugin).metadata
+        return None
+    
+    @classmethod
+    def update_plugin_metadata(cls, plugin_name: str, **kwargs) -> None:
+        """
+        Update metadata for a plugin.
+        
+        Args:
+            plugin_name: Name of the plugin to update metadata for
+            **kwargs: Metadata fields to update
+            
+        Raises:
+            PluginError: If plugin is not found
+        """
+        plugin = cls.get_plugin(plugin_name)
+        if not plugin:
+            raise PluginError(f"Plugin '{plugin_name}' not found")
+        
+        cls._plugin_metadata.update_metadata(plugin, **kwargs)
+    
+    @classmethod
+    def update_execution_stats(
+        cls,
+        plugin_name: str,
+        execution_time: float,
+        success: bool,
+        error: Optional[str] = None
+    ) -> None:
+        """
+        Update execution statistics for a plugin.
+        
+        Args:
+            plugin_name: Name of the plugin to update stats for
+            execution_time: Time taken to execute the plugin
+            success: Whether execution was successful
+            error: Error message if execution failed
+            
+        Raises:
+            PluginError: If plugin is not found
+        """
+        plugin = cls.get_plugin(plugin_name)
+        if not plugin:
+            raise PluginError(f"Plugin '{plugin_name}' not found")
+        
+        cls._plugin_metadata.update_execution_stats(
+            plugin,
+            execution_time,
+            success,
+            error
+        )
+    
+    @classmethod
+    def validate_all_metadata(cls) -> bool:
+        """
+        Validate metadata for all plugins.
+        
+        Returns:
+            bool: True if all metadata is valid, False otherwise
+            
+        Raises:
+            PluginValidationError: If validation fails
+        """
+        return cls._plugin_metadata.validate_all()
+    
+    @classmethod
+    def migrate_all_metadata(cls, target_version: str) -> None:
+        """
+        Migrate metadata for all plugins to a new version.
+        
+        Args:
+            target_version: Target version to migrate to
+            
+        Raises:
+            PluginError: If migration fails
+        """
+        cls._plugin_metadata.migrate_all(target_version)
+    
+    @classmethod
+    def clear_metadata_cache(cls) -> None:
+        """Clear the metadata cache."""
+        cls._plugin_metadata.clear_cache()
 
 
 def plugin(plugin_class: Type[BasePlugin]) -> Type[BasePlugin]:
@@ -580,7 +684,7 @@ def get_plugin(name: str) -> Type[BasePlugin]:
     Raises:
         KeyError: If no plugin with the given name is found
     """
-    return PluginRegistry.get_plugin_class(name)
+    return PluginRegistry.get_plugin(name)
 
 
 def get_available_plugins() -> Dict[str, Type[BasePlugin]]:
@@ -590,7 +694,7 @@ def get_available_plugins() -> Dict[str, Type[BasePlugin]]:
     Returns:
         Dictionary mapping plugin names to plugin classes
     """
-    return PluginRegistry.get_available_plugins()
+    return PluginRegistry.get_enabled_plugins()
 
 
 def clear_plugin_registry() -> None:
@@ -599,4 +703,4 @@ def clear_plugin_registry() -> None:
     
     This is primarily useful for testing purposes.
     """
-    PluginRegistry.clear_registry()
+    PluginRegistry.clear_metadata_cache()

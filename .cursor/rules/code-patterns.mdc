@@ -1,0 +1,493 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Bug Bounty Framework Code Patterns and Conventions
+
+## Core Patterns
+
+### 1. Plugin Pattern
+All plugins must follow these conventions:
+
+```python
+@plugin  # Required decorator for plugin registration
+class CustomPlugin(BasePlugin):
+    # Required metadata
+    name: str = "custom_plugin"  # Must be unique, alphanumeric with underscores
+    description: str = "Description of what the plugin does"
+    version: str = "1.0.0"  # Should follow semver
+    
+    # Optional configuration
+    enabled: bool = True
+    required_ports: List[int] = []
+    required_protocols: List[str] = []
+    depends_on: List[str] = []  # Other plugins this plugin depends on
+    timeout: int = 300  # Default timeout in seconds
+    
+    async def execute(self, target: str, **kwargs) -> Dict[str, Any]:
+        """Core plugin logic must be implemented here."""
+        pass
+    
+    async def setup(self) -> None:
+        """Optional setup before execution."""
+        pass
+    
+    async def cleanup(self) -> None:
+        """Optional cleanup after execution."""
+        pass
+```
+
+#### Plugin Rules:
+1. Must use `@plugin` decorator for registration
+2. Must inherit from `BasePlugin`
+3. Must define required metadata (name, description, version)
+4. Must implement `execute()`, method
+5. Should implement `setup()` and `cleanup()` if needed
+6. Should use type hints for all methods
+7. Should document all public methods
+8. Should handle errors gracefully
+9. Should use async/await for I/O operations
+10. Should use the plugin's logger for logging
+
+### 2. Stage Pattern
+All stages must follow these conventions:
+
+```python
+class CustomStage(Stage):
+    # Required metadata
+    name: str = "custom_stage"
+    description: str = "Description of what the stage does"
+    
+    # Default plugins for this stage
+    DEFAULT_PLUGINS = [
+        "plugin1",
+        "plugin2",
+    ]
+    
+    async def initialize(self) -> None:
+        """Initialize stage resources."""
+        await super().initialize()
+        # Stage-specific initialization
+    
+    async def execute(self, **kwargs) -> Dict[str, Any]:
+        """Execute the stage's main logic."""
+        # Stage-specific execution
+        pass
+    
+    async def get_plugins(self) -> List[str]:
+        """Get list of plugins to run in this stage."""
+        return self.DEFAULT_PLUGINS
+```
+
+#### Stage Rules:
+1. Must inherit from `Stage`
+2. Must define required metadata (name, description)
+3. Should define `DEFAULT_PLUGINS` list
+4. Must implement `execute()` method
+5. Should implement `initialize()` if needed
+6. Should override `get_plugins()` if using custom plugin selection
+7. Should use type hints for all methods
+8. Should document all public methods
+9. Should handle errors gracefully
+10. Should use async/await for I/O operations
+11. Should use the stage's logger for logging
+
+### 3. State Management Pattern
+State management follows these conventions:
+
+```python
+# Global state
+state_manager.set_global('key', value)
+value = state_manager.get_global('key')
+
+# Plugin state
+state_manager.set_plugin_state('plugin_name', state_dict)
+state_dict = state_manager.get_plugin_state('plugin_name')
+
+# Stage state
+state_manager.set_stage_state('stage_name', state_dict)
+state_dict = state_manager.get_stage_state('stage_name')
+```
+
+#### State Management Rules:
+1. Use appropriate state level (global, plugin, stage)
+2. Always use type hints for state values
+3. Document state structure
+4. Handle state persistence
+5. Validate state before use
+6. Use atomic operations for state updates
+7. Clean up state when no longer needed
+8. Use checksums for state validation
+9. Handle state migration if needed
+10. Log state changes for debugging
+
+### 4. Configuration Pattern
+Configuration follows these conventions:
+
+```python
+# Plugin configuration
+config = {
+    'enabled': True,
+    'timeout': 300,
+    'custom_setting': 'value'
+}
+
+# Stage configuration
+stage_config = {
+    'enabled': True,
+    'plugins': ['plugin1', 'plugin2'],
+    'custom_setting': 'value'
+}
+
+# Framework configuration
+framework_config = {
+    'target': 'example.com',
+    'output_dir': 'reports',
+    'log_level': 'INFO',
+    'stages': {
+        'stage_name': stage_config
+    },
+    'plugins': {
+        'plugin_name': config
+    }
+}
+```
+
+#### Configuration Rules:
+1. Use YAML for configuration files
+2. Follow hierarchical structure
+3. Document all configuration options
+4. Provide default values
+5. Validate configuration
+6. Use type hints for config values
+7. Handle configuration inheritance
+8. Support environment variables
+9. Log configuration changes
+10. Use secure storage for secrets
+
+### 5. Error Handling Pattern
+Error handling follows these conventions:
+
+```python
+try:
+    # Operation that might fail
+    result = await operation()
+except SpecificError as e:
+    # Handle specific error
+    logger.error(f"Operation failed: {e}")
+    raise CustomError("Operation failed") from e
+except Exception as e:
+    # Handle unexpected error
+    logger.error(f"Unexpected error: {e}", exc_info=True)
+    raise FrameworkError("Unexpected error") from e
+finally:
+    # Cleanup
+    await cleanup()
+```
+
+#### Error Handling Rules:
+1. Use custom exception classes
+2. Always include original error in chain
+3. Log errors with appropriate level
+4. Clean up resources in finally block
+5. Use specific exception types
+6. Document possible exceptions
+7. Handle errors at appropriate level
+8. Provide meaningful error messages
+9. Include context in error messages
+10. Use error codes for known issues
+
+### 6. Logging Pattern
+Logging follows these conventions:
+
+```python
+# Module-level logger
+logger = logging.getLogger(__name__)
+
+# Plugin/Stage logger
+self.log = logging.getLogger(f"bbf.{self.__class__.__name__}")
+
+# Logging levels
+logger.debug("Detailed information")
+logger.info("General information")
+logger.warning("Warning message")
+logger.error("Error message", exc_info=True)
+```
+
+#### Logging Rules:
+1. Use module-level loggers
+2. Use appropriate log levels
+3. Include context in log messages
+4. Use structured logging
+5. Include timestamps
+6. Log exceptions with traceback
+7. Use consistent log format
+8. Configure log rotation
+9. Include correlation IDs
+10. Log performance metrics
+
+### 7. Async Pattern
+Async operations follow these conventions:
+
+```python
+async def operation(self) -> Dict[str, Any]:
+    """Async operation with proper error handling."""
+    try:
+        # Async operation
+        result = await self._do_async_work()
+        return result
+    except Exception as e:
+        self.log.error(f"Async operation failed: {e}")
+        raise
+
+async def parallel_operations(self, items: List[str]) -> List[Any]:
+    """Run operations in parallel."""
+    tasks = [self._process_item(item) for item in items]
+    return await asyncio.gather(*tasks, return_exceptions=True)
+```
+
+#### Async Rules:
+1. Use async/await consistently
+2. Handle async errors properly
+3. Use asyncio.gather for parallel operations
+4. Implement proper cleanup
+5. Use async context managers
+6. Document async behavior
+7. Handle cancellation
+8. Use appropriate timeouts
+9. Implement backoff strategies
+10. Monitor async performance
+
+## File Organization
+
+### 1. Module Structure
+```
+module_name/
+├── __init__.py           # Module exports and version
+├── base.py              # Base classes
+├── exceptions.py        # Custom exceptions
+├── utils.py            # Utility functions
+└── implementations/    # Concrete implementations
+    ├── __init__.py
+    └── specific_impl.py
+```
+
+### 2. Import Order
+```python
+# Standard library imports
+import os
+import sys
+from typing import Dict, List
+
+# Third-party imports
+import aiohttp
+import yaml
+
+# Local imports
+from bbf.core import BasePlugin
+from bbf.utils import helper_function
+```
+
+### 3. Class Organization
+```python
+class CustomClass:
+    # Class-level attributes
+    CONSTANT = "value"
+    
+    # Public attributes
+    name: str
+    
+    # Private attributes
+    _private_var: str
+    
+    def __init__(self):
+        """Initialize the class."""
+        pass
+    
+    # Public methods
+    async def public_method(self):
+        """Public method documentation."""
+        pass
+    
+    # Private methods
+    async def _private_method(self):
+        """Private method documentation."""
+        pass
+    
+    # Property methods
+    @property
+    def some_property(self):
+        """Property documentation."""
+        pass
+```
+
+## Documentation Standards
+
+### 1. Docstring Format
+```python
+def function(param1: str, param2: int) -> bool:
+    """
+    Function description.
+    
+    Args:
+        param1: Description of param1
+        param2: Description of param2
+        
+    Returns:
+        Description of return value
+        
+    Raises:
+        ExceptionType: Description of when this exception is raised
+    """
+    pass
+```
+
+### 2. Type Hints
+```python
+from typing import Dict, List, Optional, Any, Union
+
+def function(
+    param1: str,
+    param2: Optional[int] = None,
+    param3: Union[str, int] = "default"
+) -> Dict[str, Any]:
+    pass
+```
+
+### 3. Comments
+```python
+# Section comment
+# --------------
+
+# Important note about the following code
+code_here()
+
+# TODO: Future improvement
+# FIXME: Known issue
+# NOTE: Important information
+```
+
+## Testing Standards
+
+### 1. Test File Organization
+```
+tests/
+├── __init__.py
+├── conftest.py           # Test fixtures
+├── test_plugin.py        # Plugin tests
+├── test_stage.py         # Stage tests
+└── integration/          # Integration tests
+    ├── __init__.py
+    └── test_workflow.py
+```
+
+### 2. Test Function Naming
+```python
+def test_function_behavior():
+    """Test specific behavior."""
+    pass
+
+def test_function_edge_case():
+    """Test edge case behavior."""
+    pass
+
+def test_function_error_handling():
+    """Test error handling."""
+    pass
+```
+
+### 3. Test Structure
+```python
+async def test_async_function():
+    """Test async function behavior."""
+    # Arrange
+    setup_test_environment()
+    
+    # Act
+    result = await function_under_test()
+    
+    # Assert
+    assert result == expected_value
+```
+
+## Security Standards
+
+### 1. Input Validation
+```python
+def validate_input(data: Dict[str, Any]) -> bool:
+    """Validate input data."""
+    # Check required fields
+    if not all(k in data for k in REQUIRED_FIELDS):
+        return False
+    
+    # Validate field types
+    if not isinstance(data['field'], str):
+        return False
+    
+    # Validate field values
+    if not data['field'].isalnum():
+        return False
+    
+    return True
+```
+
+### 2. Error Message Sanitization
+```python
+def sanitize_error(error: Exception) -> str:
+    """Sanitize error message for logging."""
+    # Remove sensitive information
+    message = str(error)
+    message = re.sub(r'password=\w+', 'password=***', message)
+    return message
+```
+
+### 3. Resource Management
+```python
+async def secure_operation():
+    """Perform secure operation with proper resource management."""
+    async with SecureContext() as context:
+        # Perform operation
+        result = await context.operation()
+        return result
+```
+
+## Performance Standards
+
+### 1. Caching
+```python
+from functools import lru_cache
+
+@lru_cache(maxsize=100)
+def cached_function(param: str) -> Any:
+    """Cache expensive operation results."""
+    return expensive_operation(param)
+```
+
+### 2. Resource Pooling
+```python
+class ResourcePool:
+    """Manage pool of expensive resources."""
+    def __init__(self, max_size: int = 10):
+        self.pool = asyncio.Queue(maxsize=max_size)
+    
+    async def get_resource(self):
+        """Get resource from pool."""
+        return await self.pool.get()
+    
+    async def release_resource(self, resource):
+        """Release resource back to pool."""
+        await self.pool.put(resource)
+```
+
+### 3. Batch Processing
+```python
+async def process_batch(items: List[Any], batch_size: int = 100):
+    """Process items in batches."""
+    for i in range(0, len(items), batch_size):
+        batch = items[i:i + batch_size]
+        await process_items(batch)
+```
+
+
+

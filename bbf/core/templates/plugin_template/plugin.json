@@ -1,0 +1,17 @@
+{
+    "name": "{{ cookiecutter.plugin_name }}",
+    "version": "0.1.0",
+    "description": "{{ cookiecutter.plugin_description }}",
+    "author": "{{ cookiecutter.author }}",
+    "license": "{{ cookiecutter.license }}",
+    "repository": "",
+    "dependencies": {},
+    "tags": [],
+    "enabled": true,
+    "required_ports": [],
+    "required_protocols": [],
+    "timeout": 300,
+    "configuration": {
+        "options": {}
+    }
+} 

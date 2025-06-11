@@ -1,0 +1,11 @@
+{
+    "plugin_name": "plugin_name",
+    "plugin_description": "A plugin for the Bug Bounty Framework",
+    "author": "Your Name",
+    "license": "MIT",
+    "year": "2024",
+    "_copy_without_render": [
+        "*.py",
+        "tests/*.py"
+    ]
+} 

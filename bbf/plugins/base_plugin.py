@@ -1,182 +1,183 @@
 """
 Base plugin class for the Bug Bounty Framework.
 
-This module defines the BasePlugin class that all plugins must inherit from.
+This module defines the base class that all plugins must inherit from.
 """
 
-import abc
 import asyncio
 import logging
-from typing import Dict, Any, List, Optional, Set, Union, Callable, Coroutine
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional, Set, Type, TypeVar
 
-from ..core.plugin import BasePlugin as CoreBasePlugin
+from ..core.exceptions import (
+    PluginError,
+    PluginTimeoutError,
+    PluginResourceError,
+    PluginExecutionError
+)
+from ..core.execution import ExecutionManager
 
 logger = logging.getLogger(__name__)
 
-class BasePlugin(CoreBasePlugin):
+T = TypeVar('T')
+
+class BasePlugin(ABC):
     """
-    Base class for all Bug Bounty Framework plugins.
+    Base class for all plugins.
     
-    This class extends the core BasePlugin with additional functionality
-    specific to the Bug Bounty Framework.
+    This class defines the interface that all plugins must implement.
+    It provides common functionality for:
+    - Plugin lifecycle management
+    - Resource management
+    - Error handling
+    - Result caching
     """
     
     # Plugin metadata
-    name: str = "base_plugin"
-    description: str = "Base plugin class. Should be overridden by subclasses."
-    version: str = "0.1.0"
-    
-    # Plugin configuration
+    name: str
+    version: str
+    description: str
     enabled: bool = True
-    required_ports: List[int] = []
-    required_protocols: List[str] = []
+    required_ports: Set[int] = set()
+    required_protocols: Set[str] = set()
+    depends_on: Set[str] = set()
+    timeout: Optional[float] = None
     
-    # Dependencies (plugin names that must run before this one)
-    depends_on: List[str] = []
+    def __init__(self):
+        """Initialize plugin."""
+        if not hasattr(self, 'name'):
+            raise PluginError("Plugin must have a name")
+        if not hasattr(self, 'version'):
+            raise PluginError("Plugin must have a version")
+        if not hasattr(self, 'description'):
+            raise PluginError("Plugin must have a description")
     
-    # Timeout in seconds (0 for no timeout)
-    timeout: int = 300  # 5 minutes default
-    
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """
-        Initialize the plugin with optional configuration.
-        
-        Args:
-            config: Dictionary containing plugin configuration
-        """
-        super().__init__(config or {})
-        
-        # Set up logger for this plugin instance
-        self.log = logging.getLogger(f"bbf.plugins.{self.name}")
-        
-        # Plugin state
-        self._state: Dict[str, Any] = {}
-        self._results: Dict[str, Any] = {}
-        self._errors: List[Exception] = []
-    
-    async def run(self, *args, **kwargs) -> Dict[str, Any]:
-        """
-        Main entry point for the plugin's functionality.
-        
-        This method must be implemented by all plugins. It should contain
-        the core logic of the plugin.
-        
-        Args:
-            *args: Positional arguments
-            **kwargs: Keyword arguments
-            
-        Returns:
-            Dictionary containing the results of the plugin's execution
-            
-        Raises:
-            PluginExecutionError: If the plugin fails to execute
-        """
-        try:
-            # Initialize the plugin
-            await self.setup()
-            
-            # Execute the plugin's main logic
-            results = await self.execute(*args, **kwargs)
-            
-            # Store the results
-            if results is not None:
-                self._results.update(results)
-            
-            return self._results
-            
-        except Exception as e:
-            self.log.error(f"Plugin {self.name} failed: {e}", exc_info=True)
-            self.add_error(e)
-            raise PluginExecutionError(f"Plugin {self.name} failed: {e}") from e
-            
-        finally:
-            # Clean up resources
-            await self.cleanup()
-    
-    @abc.abstractmethod
-    async def execute(self, *args, **kwargs) -> Dict[str, Any]:
-        """
-        Execute the main logic of the plugin.
-        
-        This method must be implemented by all plugins. It should contain
-        the core functionality of the plugin.
-        
-        Args:
-            *args: Positional arguments
-            **kwargs: Keyword arguments
-            
-        Returns:
-            Dictionary containing the results of the plugin's execution
-        """
-        raise NotImplementedError("Plugin must implement the execute() method")
-    
+    @abstractmethod
     async def setup(self) -> None:
         """
-        Perform any setup required before the plugin runs.
+        Set up plugin resources.
         
-        This method can be overridden by plugins that need to perform
-        initialization steps before the main execution.
+        This method is called before plugin execution to set up any
+        required resources. It should be implemented by subclasses.
+        
+        Raises:
+            PluginError: If setup fails
         """
-        self.log.debug(f"Initializing plugin: {self.name}")
+        pass
     
+    @abstractmethod
     async def cleanup(self) -> None:
         """
-        Perform any cleanup after the plugin has finished running.
+        Clean up plugin resources.
         
-        This method can be overridden by plugins that need to perform
-        cleanup operations after execution.
+        This method is called after plugin execution to clean up any
+        resources. It should be implemented by subclasses.
+        
+        Raises:
+            PluginError: If cleanup fails
         """
-        self.log.debug(f"Cleaning up plugin: {self.name}")
+        pass
     
-    def validate_config(self) -> bool:
+    @abstractmethod
+    async def execute(self, *args: Any, **kwargs: Any) -> Any:
         """
-        Validate the plugin's configuration.
+        Execute plugin functionality.
         
+        This method implements the main plugin functionality. It should
+        be implemented by subclasses.
+        
+        Args:
+            *args: Positional arguments for plugin execution
+            **kwargs: Keyword arguments for plugin execution
+            
         Returns:
-            bool: True if the configuration is valid, False otherwise
+            Plugin execution result
+            
+        Raises:
+            PluginError: If execution fails
         """
-        return True
+        pass
     
-    def add_result(self, key: str, value: Any) -> None:
+    async def run(
+        self,
+        *args: Any,
+        timeout: Optional[float] = None,
+        max_memory: Optional[int] = None,
+        max_cpu: Optional[float] = None,
+        max_threads: Optional[int] = None,
+        cache_ttl: Optional[int] = None,
+        use_cache: bool = True,
+        **kwargs: Any
+    ) -> Any:
         """
-        Add a result to the plugin's result dictionary.
+        Run plugin with resource management.
+        
+        This method:
+        1. Sets up plugin resources
+        2. Executes plugin functionality
+        3. Cleans up plugin resources
+        4. Manages resources and timeouts
+        5. Handles caching
         
         Args:
-            key: The key under which to store the result
-            value: The result value to store
+            *args: Positional arguments for plugin execution
+            timeout: Maximum execution time in seconds
+            max_memory: Maximum memory usage in bytes
+            max_cpu: Maximum CPU usage (0.0 to 1.0)
+            max_threads: Maximum number of threads
+            cache_ttl: Cache TTL in seconds
+            use_cache: Whether to use result caching
+            **kwargs: Keyword arguments for plugin execution
+            
+        Returns:
+            Plugin execution result
+            
+        Raises:
+            PluginTimeoutError: If execution times out
+            PluginResourceError: If resource limits are exceeded
+            PluginExecutionError: If execution fails
         """
-        self._results[key] = value
+        try:
+            # Set up plugin
+            await self.setup()
+            
+            # Execute plugin with resource management
+            return await ExecutionManager.execute_plugin(
+                self,
+                *args,
+                timeout=timeout,
+                max_memory=max_memory,
+                max_cpu=max_cpu,
+                max_threads=max_threads,
+                cache_ttl=cache_ttl,
+                use_cache=use_cache,
+                **kwargs
+            )
+            
+        except Exception as e:
+            if isinstance(e, (PluginTimeoutError, PluginResourceError, PluginExecutionError)):
+                raise
+            raise PluginExecutionError(f"Plugin execution failed: {str(e)}") from e
+            
+        finally:
+            # Clean up plugin
+            try:
+                await self.cleanup()
+            except Exception as e:
+                logger.error(f"Plugin cleanup failed: {e}")
     
-    def add_error(self, error: Exception) -> None:
+    def cancel(self) -> None:
         """
-        Add an error to the plugin's error list.
+        Cancel plugin execution.
         
-        Args:
-            error: The exception that occurred
+        This method cancels the current plugin execution if it is running.
+        
+        Raises:
+            PluginError: If plugin is not being executed
         """
-        self._errors.append(error)
-        self.log.error(f"Error in plugin {self.name}: {str(error)}", exc_info=True)
+        ExecutionManager.cancel_execution(self.name)
     
-    @property
-    def results(self) -> Dict[str, Any]:
-        """Get the plugin's results."""
-        return self._results
-    
-    @property
-    def errors(self) -> List[Exception]:
-        """Get the plugin's errors."""
-        return self._errors
-    
-    @property
-    def state(self) -> Dict[str, Any]:
-        """Get the plugin's state."""
-        return self._state
-    
-    @state.setter
-    def state(self, value: Dict[str, Any]) -> None:
-        """Set the plugin's state."""
-        self._state = value
-    
-    def __str__(self) -> str:
-        """String representation of the plugin."""
-        return f"{self.name} (v{self.version}): {self.description}"
+    @classmethod
+    def clear_cache(cls) -> None:
+        """Clear plugin result cache."""
+        ExecutionManager.clear_cache()

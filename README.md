@@ -192,6 +192,34 @@ Each stage can be configured with the following options:
 
 Each plugin can have its own configuration options. Refer to the plugin's documentation for available options.
 
+## Environment Variables
+
+The framework uses environment variables for configuration and API keys. Here are the required variables:
+
+### Subdomain Enumeration Plugin
+
+The subdomain enumeration plugin requires API keys for certain features. These can be set as environment variables:
+
+- `CERT_API_KEY`: API key for Certspotter API (used for certificate transparency log checks)
+  - Get your API key from: https://certspotter.com/api
+  - Required for certificate transparency log scanning
+  - If not set, certificate transparency checks will be disabled
+
+- `WAYBACK_API_KEY`: API key for Wayback Machine API (used for web archive scanning)
+  - Get your API key from: https://archive.org/account/s3.php
+  - Required for web archive scanning
+  - If not set, web archive checks will be disabled
+
+Example usage:
+```bash
+# Set environment variables
+export CERT_API_KEY="your_certspotter_api_key"
+export WAYBACK_API_KEY="your_wayback_api_key"
+
+# Run the framework
+python -m bbf ...
+```
+
 ## Contributing
 
 Contributions are welcome! Please follow these steps:

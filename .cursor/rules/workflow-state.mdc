@@ -1,0 +1,360 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# workflow_state.md
+_Last updated: 2025-06-06_
+
+## State
+Phase: BLUEPRINT
+Status: NEEDS_PLAN_APPROVAL
+CurrentItem: Integration Testing
+EpicReference: EPIC-002
+EpicPhase: Phase 3: Integration and Testing
+EpicStep: Testing and Validation
+
+## Plan
+### Overview
+Create and implement a comprehensive integration test suite to verify that all plugins work together correctly with the new centralized database system. This includes testing plugin interactions, data preservation, concurrent execution, and error handling.
+
+### Implementation Steps
+
+1. **Create Integration Test Framework**
+   - Create test base classes for integration tests
+   - Implement test fixtures for database setup/teardown
+   - Add helper utilities for test data generation
+   - Add mock services for external dependencies
+   - Add test configuration management
+   - Add test logging and reporting
+
+2. **Implement Plugin Interaction Tests**
+   - Test Subdomain Enumeration → Port Scanning flow
+   - Test Port Scanning → Web Technology Detection flow
+   - Test Web Technology Detection → Directory Bruteforce flow
+   - Test Directory Bruteforce → Vulnerability Scanner flow
+   - Test concurrent plugin execution
+   - Test plugin dependency handling
+   - Test plugin result aggregation
+
+3. **Implement Database Integration Tests**
+   - Test finding storage and retrieval
+   - Test metadata merging
+   - Test data preservation rules
+   - Test concurrent database operations
+   - Test transaction handling
+   - Test error recovery
+   - Test database connection management
+
+4. **Implement Error Handling Tests**
+   - Test plugin error recovery
+   - Test database error handling
+   - Test network error handling
+   - Test resource limit handling
+   - Test timeout handling
+   - Test invalid input handling
+   - Test concurrent error scenarios
+
+5. **Implement Performance Tests**
+   - Test with large target lists
+   - Test concurrent execution
+   - Test resource usage
+   - Test database performance
+   - Test network performance
+   - Test memory usage
+   - Test CPU usage
+
+6. **Implement End-to-End Tests**
+   - Test complete reconnaissance workflow
+   - Test complete scanning workflow
+   - Test complete testing workflow
+   - Test complete reporting workflow
+   - Test configuration management
+   - Test state management
+   - Test result aggregation
+
+7. **Documentation Updates**
+   - Update test documentation
+   - Add test examples
+   - Add test configuration guide
+   - Add test troubleshooting guide
+   - Update API documentation
+   - Add test coverage report
+   - Add performance benchmarks
+
+### Success Criteria
+1. All integration tests pass
+2. Test coverage meets requirements (minimum 80%)
+3. Performance meets requirements
+4. Error handling is comprehensive
+5. Documentation is up to date
+6. Test suite is maintainable
+7. Test suite is extensible
+8. Test suite is well-documented
+
+### File Structure
+```
+bbf/
+├── tests/
+│   ├── integration/
+│   │   ├── __init__.py
+│   │   ├── conftest.py           # Test fixtures and configuration
+│   │   ├── test_base.py          # Base test classes
+│   │   ├── test_plugin_flow.py   # Plugin interaction tests
+│   │   ├── test_database.py      # Database integration tests
+│   │   ├── test_errors.py        # Error handling tests
+│   │   ├── test_performance.py   # Performance tests
+│   │   └── test_e2e.py          # End-to-end tests
+│   └── utils/
+│       ├── __init__.py
+│       ├── test_data.py          # Test data generation
+│       ├── mock_services.py      # Mock service implementations
+│       └── test_helpers.py       # Test helper utilities
+└── docs/
+    └── testing/
+        ├── integration.md        # Integration test documentation
+        ├── performance.md        # Performance test documentation
+        └── troubleshooting.md    # Test troubleshooting guide
+```
+
+### Test Configuration Schema
+```yaml
+integration_tests:
+  database:
+    url: "postgresql://test:test@localhost:5432/test_db"
+    pool_size: 5
+    timeout: 30
+  plugins:
+    timeout: 300
+    max_concurrent: 5
+    retry_count: 3
+  performance:
+    target_count: 100
+    concurrent_scans: 10
+    memory_limit: "1G"
+    cpu_limit: 2
+  logging:
+    level: "DEBUG"
+    file: "integration_tests.log"
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+```
+
+### Testing Strategy
+1. **Test Categories**
+   - Unit Tests: Test individual components
+   - Integration Tests: Test component interactions
+   - Performance Tests: Test system performance
+   - End-to-End Tests: Test complete workflows
+
+2. **Test Execution**
+   - Run tests in CI/CD pipeline
+   - Run tests before deployment
+   - Run tests after code changes
+   - Run tests periodically
+
+3. **Test Data Management**
+   - Use test fixtures
+   - Generate test data
+   - Clean up test data
+   - Version test data
+
+4. **Test Environment**
+   - Use test database
+   - Use mock services
+   - Use test configuration
+   - Use test logging
+
+5. **Test Reporting**
+   - Generate test reports
+   - Track test coverage
+   - Track test performance
+   - Track test failures
+
+### Success Criteria
+1. Test suite is comprehensive
+2. Tests are reliable
+3. Tests are maintainable
+4. Tests are well-documented
+5. Test coverage is adequate
+6. Performance meets requirements
+7. Error handling is tested
+8. Documentation is up to date
+
+## Rules
+> **Keep every major section under an explicit H2 (`##`) heading so the agent can locate them unambiguously.**
+
+### [PHASE: ANALYZE]
+1. Read **project_config.md**, relevant code & docs.  
+2. **Epic Integration Logic**:
+   - If user request mentions epic work (e.g., "work on login from user management epic"), search epics.mdc
+   - Identify matching epic, phase, and step from user's natural language description
+   - Set CurrentItem to descriptive format, and set epic fields:
+     - Set `EpicReference = EPIC_NAME` (if found)
+     - Set `EpicPhase = PHASE_NAME` (if found)
+     - Set `EpicStep = STEP_NAME` (if found)
+   - If no epic context found, leave epic fields as null
+3. Summarize requirements. *No code or planning.*
+
+### [PHASE: BLUEPRINT]
+1. **Architecture Validation**: Read architecture.mdc to understand current architecture and validate planned changes align with existing patterns and decisions.
+2. If `EpicReference` exists, read epic context from epics.mdc for step requirements and acceptance criteria.
+3. **Architecture Impact Assessment**: Evaluate if planned work requires architectural changes or updates.
+4. Decompose task into ordered steps.  
+5. Write pseudocode or file-level diff outline under **## Plan**.
+6. **Plan Architecture Updates**: Include steps to update architecture.mdc if architectural changes are being made.
+7. Set `Status = NEEDS_PLAN_APPROVAL` and await user confirmation.
+
+### [PHASE: CONSTRUCT]
+1. Follow the approved **## Plan** exactly.  
+2. After each atomic change:  
+   - run test / linter commands specified in `project_config.md`  
+   - capture tool output in **## Log**
+3. **Architecture Updates**: When implementing architectural changes, update architecture.mdc with new patterns, decisions, or modifications.
+4. On success of all steps, set `Phase = VALIDATE`.
+
+### [PHASE: VALIDATE]
+1. Rerun full test suite & any E2E checks.  
+2. If clean, set `Status = COMPLETED`.  
+3. Trigger **RULE_ITERATE_01** when applicable.
+
+---
+
+### RULE_INIT_01
+Trigger ▶ `Phase == INIT`  
+Action ▶ Ask user for first high-level task → `Phase = ANALYZE, Status = RUNNING`.
+
+### RULE_ITERATE_01
+Trigger ▶ `Status == COMPLETED && Items contains unprocessed rows`  
+Action ▶  
+1. Set `CurrentItem` to next unprocessed row in **## Items**.  
+2. Parse epic reference if CurrentItem format is `EPIC_NAME > PHASE_NAME > STEP_NAME`.
+3. Clear **## Log**, reset `Phase = ANALYZE, Status = READY`.
+
+### RULE_LOG_ROTATE_01
+Trigger ▶ `length(## Log) > 5 000 chars`  
+Action ▶ Summarise the top 5 findings from **## Log** into **## ArchiveLog**, then clear **## Log**.
+
+### RULE_EPIC_UPDATE_01
+Trigger ▶ `Phase == VALIDATE && Status == COMPLETED && EpicReference != null`
+Action ▶
+1. Parse EpicReference, EpicPhase, and EpicStep to identify epic location in epics.mdc.
+2. Update corresponding epic step status to include completion percentage, date, and notes.
+3. Check if all steps in the phase are completed, update phase status accordingly.
+4. Add completion entry to epic notes section with timestamp.
+
+### RULE_EPIC_COMPLETION_ARCHIVE_01
+Trigger ▶ `Epic Status == COMPLETED in epics.mdc`
+Action ▶
+1. Identify completed epic(s) in the ACTIVE EPICS section of epics.mdc.
+2. Move the completed epic from ACTIVE EPICS section to EPIC COMPLETION HISTORY section.
+3. Update portfolio summary counts: decrease Active Epics, increase Completed Epics.
+4. Preserve all epic details, phases, steps, and outcomes in the completion history.
+5. Update Epic Status Summary section with current counts.
+6. Log the epic archival in workflow ## Log section.
+
+### RULE_ARCHITECTURE_UPDATE_01
+Trigger ▶ `Phase == CONSTRUCT && architectural changes are being implemented`
+Action ▶
+1. Identify the architectural change being made (new pattern, technology choice, design decision).
+2. Update the relevant section in architecture.mdc with the new information.
+3. Add entry to Architecture Changelog with timestamp and change type.
+4. Log the architecture update in workflow ## Log section.
+
+### RULE_ARCHITECTURE_VALIDATE_01
+Trigger ▶ `Phase == BLUEPRINT && CurrentItem involves architectural decisions`
+Action ▶
+1. Read current architecture.mdc to understand existing patterns and constraints.
+2. Validate that planned changes align with existing architectural decisions.
+3. Identify any conflicts with current architecture and note in plan.
+4. Include architecture update steps in the plan if new patterns are being introduced.
+
+### RULE_SUMMARY_01
+Trigger ▶ `Phase == VALIDATE && Status == COMPLETED`  
+Action ▶ 
+1. Read `project_config.md`.
+2. Construct the new changelog line: `- <One-sentence summary of completed work>`.
+3. Find the `## Changelog` heading in `project_config.md`.
+4. Insert the new changelog line immediately after the `## Changelog` heading and its following newline (making it the new first item in the list).
+
+---
+
+## Epic Integration Usage
+
+### **Realistic User Interactions**
+
+#### **Starting Epic Work**
+```bash
+# User says:
+"Start working on the login component from the user management epic"
+
+# AI automatically:
+1. Searches epics.mdc for user management epic
+2. Finds the login component step in authentication phase
+3. Sets CurrentItem: "Login component implementation"
+4. Sets epic fields:
+   EpicReference: USER_MGMT_EPIC
+   EpicPhase: AUTHENTICATION_PHASE  
+   EpicStep: LOGIN_COMPONENT_STEP
+5. Reads epic context during blueprint phase
+```
+
+#### **Epic Progress Updates**
+```bash
+# User says:
+"Update the login component progress to 75%, core functionality is done but still need remember me feature"
+
+# AI automatically:
+1. Finds current epic work in epics.mdc
+2. Updates step status to IN_PROGRESS (75%)
+3. Updates notes with user's progress description
+4. Sets last updated date
+```
+
+#### **Standalone Work (No Epic)**
+```bash
+# User says:
+"Fix the payment processing bug in checkout"
+
+# AI automatically:
+1. No epic context mentioned, processes as standalone work
+2. Sets CurrentItem: "Fix payment processing bug"
+3. Leaves epic fields null:
+   EpicReference: null
+   EpicPhase: null
+   EpicStep: null
+```
+
+### **AI Epic Management Commands**
+The AI handles these natural language requests:
+- **"Plan an epic for [feature]"** → Creates new epic in epics.mdc
+- **"Work on [step] from [epic]"** → Starts workflow with epic context
+- **"Update progress on [current work]"** → Updates epic step status
+- **"Mark [step] as complete"** → Sets step to 100% and updates epic
+- **"Show epic status"** → Displays current epic progress
+
+---
+
+## Items
+| id | description | status |
+|----|-------------|--------|
+| 1 | Create Integration Test Framework | PLANNED |
+| 2 | Implement Plugin Interaction Tests | PLANNED |
+| 3 | Implement Database Integration Tests | PLANNED |
+| 4 | Implement Error Handling Tests | PLANNED |
+| 5 | Implement Performance Tests | PLANNED |
+| 6 | Implement End-to-End Tests | PLANNED |
+| 7 | Documentation Updates | PLANNED |
+
+## Log
+[2024-03-21 10:00:00] Created recon plugins package structure
+[2024-03-21 10:05:00] Updated database models for centralized findings
+[2024-03-21 10:10:00] Updated repository layer for centralized findings
+[2024-03-21 10:15:00] Created plugin integration plan
+[2024-03-21 10:20:00] Updated all plugins to use centralized database
+[2024-03-21 10:25:00] Created integration testing plan
+
+## ArchiveLog
+<!-- RULE_LOG_ROTATE_01 stores condensed summaries here -->
+
+## Changelog
+<!-- RULE_SUMMARY_01 stores the new changelog line here -->

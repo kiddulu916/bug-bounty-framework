@@ -1,0 +1,359 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Bug Bounty Framework Testing Conventions
+
+## Test Organization
+
+### 1. Directory Structure
+```
+tests/
+├── __init__.py
+├── conftest.py           # Shared fixtures and configuration
+├── test_plugin.py        # Plugin system tests
+├── test_framework.py     # Framework core tests
+├── test_stage.py         # Stage implementation tests
+├── test_utils.py         # Utility function tests
+└── integration/          # Integration tests
+    ├── __init__.py
+    ├── test_workflow.py  # End-to-end workflow tests
+    └── test_plugins/     # Plugin integration tests
+        ├── __init__.py
+        └── test_*.py     # Individual plugin tests
+```
+
+### 2. Test File Naming
+- Unit test files: `test_<module_name>.py`
+- Integration test files: `test_<feature>_integration.py`
+- Plugin test files: `test_<plugin_name>.py`
+- Fixture files: `conftest.py`
+
+### 3. Test Class Organization
+```python
+class TestFeatureName:
+    """Test cases for the FeatureName component."""
+    
+    @pytest.fixture
+    def setup_fixture(self):
+        """Setup fixture for tests."""
+        pass
+    
+    @pytest.mark.asyncio
+    async def test_specific_behavior(self, setup_fixture):
+        """Test specific behavior of the feature."""
+        # Arrange
+        # Act
+        # Assert
+        pass
+    
+    @pytest.mark.asyncio
+    async def test_error_handling(self, setup_fixture):
+        """Test error handling scenarios."""
+        # Arrange
+        # Act & Assert
+        with pytest.raises(ExpectedError):
+            await operation()
+```
+
+## Test Patterns
+
+### 1. Fixture Patterns
+```python
+# Basic fixture
+@pytest.fixture
+def basic_fixture():
+    """Basic fixture that returns a value."""
+    return value
+
+# Fixture with setup/teardown
+@pytest.fixture
+def resource_fixture():
+    """Fixture that manages a resource."""
+    # Setup
+    resource = create_resource()
+    yield resource
+    # Teardown
+    cleanup_resource(resource)
+
+# Fixture with parameters
+@pytest.fixture(params=[1, 2, 3])
+def parametrized_fixture(request):
+    """Fixture that runs with different parameters."""
+    return request.param
+
+# Async fixture
+@pytest_asyncio.fixture
+async def async_fixture():
+    """Async fixture for async tests."""
+    resource = await create_async_resource()
+    yield resource
+    await cleanup_async_resource(resource)
+```
+
+### 2. Test Method Patterns
+```python
+# Basic test
+def test_basic_behavior():
+    """Test basic functionality."""
+    result = function()
+    assert result == expected_value
+
+# Async test
+@pytest.mark.asyncio
+async def test_async_behavior():
+    """Test async functionality."""
+    result = await async_function()
+    assert result == expected_value
+
+# Parametrized test
+@pytest.mark.parametrize("input,expected", [
+    (1, 2),
+    (2, 4),
+    (3, 6)
+])
+def test_parametrized(input, expected):
+    """Test with multiple inputs."""
+    assert function(input) == expected
+
+# Error test
+def test_error_handling():
+    """Test error conditions."""
+    with pytest.raises(ExpectedError) as exc_info:
+        function()
+    assert str(exc_info.value) == "Expected error message"
+```
+
+### 3. Plugin Test Patterns
+```python
+class TestPluginName:
+    """Test cases for the PluginName plugin."""
+    
+    @pytest.fixture
+    def plugin_instance(self):
+        """Create a plugin instance for testing."""
+        return PluginName(config={})
+    
+    @pytest.mark.asyncio
+    async def test_plugin_initialization(self, plugin_instance):
+        """Test plugin initialization."""
+        assert plugin_instance.name == "plugin_name"
+        assert plugin_instance.enabled is True
+    
+    @pytest.mark.asyncio
+    async def test_plugin_execution(self, plugin_instance):
+        """Test plugin execution."""
+        result = await plugin_instance.execute("target")
+        assert result["status"] == "success"
+    
+    @pytest.mark.asyncio
+    async def test_plugin_error_handling(self, plugin_instance):
+        """Test plugin error handling."""
+        with pytest.raises(PluginError):
+            await plugin_instance.execute("invalid_target")
+    
+    @pytest.mark.asyncio
+    async def test_plugin_lifecycle(self, plugin_instance):
+        """Test complete plugin lifecycle."""
+        # Setup
+        await plugin_instance.setup()
+        assert plugin_instance.is_initialized
+        
+        # Execute
+        result = await plugin_instance.execute("target")
+        assert result["status"] == "success"
+        
+        # Cleanup
+        await plugin_instance.cleanup()
+        assert not plugin_instance.is_initialized
+```
+
+### 4. Framework Test Patterns
+```python
+class TestFrameworkComponent:
+    """Test cases for a framework component."""
+    
+    @pytest.fixture
+    def framework_instance(self, tmp_path):
+        """Create a framework instance for testing."""
+        config = {
+            "target": "example.com",
+            "output_dir": str(tmp_path / "output"),
+            "log_level": "INFO"
+        }
+        return FrameworkComponent(config)
+    
+    @pytest.mark.asyncio
+    async def test_component_initialization(self, framework_instance):
+        """Test component initialization."""
+        await framework_instance.initialize()
+        assert framework_instance.is_initialized
+    
+    @pytest.mark.asyncio
+    async def test_component_operation(self, framework_instance):
+        """Test component operation."""
+        await framework_instance.initialize()
+        result = await framework_instance.operate()
+        assert result["status"] == "success"
+    
+    @pytest.mark.asyncio
+    async def test_component_cleanup(self, framework_instance):
+        """Test component cleanup."""
+        await framework_instance.initialize()
+        await framework_instance.cleanup()
+        assert not framework_instance.is_initialized
+```
+
+## Testing Standards
+
+### 1. Test Documentation
+- Every test file must have a module docstring
+- Every test class must have a class docstring
+- Every test method must have a method docstring
+- Document test parameters and expected outcomes
+- Include examples in docstrings for complex tests
+
+### 2. Test Isolation
+- Tests must be independent of each other
+- Use fixtures for setup and teardown
+- Clean up resources after tests
+- Don't rely on test execution order
+- Use temporary directories for file operations
+
+### 3. Error Testing
+- Test both success and error cases
+- Verify error messages and types
+- Test edge cases and boundary conditions
+- Test invalid inputs
+- Test resource cleanup in error cases
+
+### 4. Async Testing
+- Use `@pytest.mark.asyncio` for async tests
+- Use `pytest_asyncio.fixture` for async fixtures
+- Handle async context managers properly
+- Test async error handling
+- Test cancellation and timeouts
+
+### 5. Mocking and Patching
+```python
+# Mock a function
+@patch('module.function')
+def test_with_mock(mock_function):
+    mock_function.return_value = expected_value
+    result = function_under_test()
+    assert result == expected_value
+
+# Mock an async function
+@patch('module.async_function')
+@pytest.mark.asyncio
+async def test_with_async_mock(mock_async_function):
+    mock_async_function.return_value = expected_value
+    result = await async_function_under_test()
+    assert result == expected_value
+
+# Mock a class
+@patch('module.Class')
+def test_with_class_mock(mock_class):
+    instance = mock_class.return_value
+    instance.method.return_value = expected_value
+    result = function_under_test()
+    assert result == expected_value
+```
+
+### 6. State Management Testing
+```python
+def test_state_management():
+    """Test state management operations."""
+    # Test state initialization
+    state_manager = StateManager()
+    assert state_manager.state == {}
+    
+    # Test state updates
+    state_manager.set_state("key", "value")
+    assert state_manager.get_state("key") == "value"
+    
+    # Test state persistence
+    state_manager.save_state()
+    new_manager = StateManager()
+    assert new_manager.get_state("key") == "value"
+```
+
+### 7. Configuration Testing
+```python
+def test_configuration():
+    """Test configuration handling."""
+    # Test valid configuration
+    config = load_config("valid_config.yaml")
+    assert config["option"] == "value"
+    
+    # Test invalid configuration
+    with pytest.raises(ConfigError):
+        load_config("invalid_config.yaml")
+    
+    # Test configuration validation
+    with pytest.raises(ValidationError):
+        validate_config({"invalid": "config"})
+```
+
+### 8. Logging Testing
+```python
+def test_logging(caplog):
+    """Test logging functionality."""
+    with caplog.at_level(logging.INFO):
+        function_that_logs()
+        assert "Expected log message" in caplog.text
+        assert "ERROR" not in caplog.text
+```
+
+## Best Practices
+
+1. Test Organization
+   - Group related tests in classes
+   - Use descriptive test names
+   - Follow the Arrange-Act-Assert pattern
+   - Keep tests focused and atomic
+   - Use appropriate test categories (unit, integration, e2e)
+
+2. Test Data
+   - Use fixtures for test data
+   - Use parametrized tests for multiple cases
+   - Use temporary files for file operations
+   - Clean up test data after tests
+   - Use realistic test data
+
+3. Test Coverage
+   - Aim for high test coverage
+   - Test edge cases and error conditions
+   - Test all public interfaces
+   - Test configuration options
+   - Test state management
+
+4. Performance
+   - Keep tests fast and focused
+   - Use appropriate mocking
+   - Avoid unnecessary setup/teardown
+   - Use parallel test execution when possible
+   - Monitor test execution time
+
+5. Maintenance
+   - Keep tests up to date
+   - Remove obsolete tests
+   - Document test dependencies
+   - Use consistent naming conventions
+   - Review test coverage regularly
+
+6. Security
+   - Don't include sensitive data in tests
+   - Use secure test configurations
+   - Test security features
+   - Validate input handling
+   - Test error message sanitization
+
+7. Documentation
+   - Document test requirements
+   - Document test data
+   - Document test environment
+   - Document test dependencies
+   - Keep documentation up to date
+

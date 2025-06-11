@@ -1,0 +1,103 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# project-config.md
+Last-Updated: 2025-06-07
+
+## **Project Goal**
+The Bug Bounty Framework (BBF) is a sophisticated, modular framework designed to automate and streamline bug bounty and security testing workflows. Its primary goals are:
+
+  -Automation: Automate repetitive security testing tasks while maintaining flexibility and extensibility
+
+  -Modularity: Allow security researchers to easily extend functionality through a plugin system
+
+  -Efficiency: Optimize security testing through asynchronous execution and parallel processing
+
+  -Organization: Structure security testing into logical stages (Recon, Scan, Test, Report)
+
+  -Integration: Support integration with various security tools and platforms (JIRA, DefectDojo)
+
+## **Tech Stack**
+  - **Language(s):** Python 3.x
+  - **Framework(s):** CLI
+  - **Build Tool:** Docker
+  - **Configuration:** YAML
+  - **State Management:** JSON
+  - **Logging:** Json
+
+**Core Framework:**
+  - aiohttp: Asynchronous HTTP client/server
+  - python-dotenv: Environment variable management
+  - PyYAML: YAML configuration parsing
+  - python-json-logger: Structured JSON logging
+  - colorlog: Colored console output
+
+**Security Testing Tools:**
+  - python-nmap: Port scanning capabilities
+  - dnspython: DNS operations and lookups
+  - beautifulsoup4: HTML parsing
+  - aiohttp-socks: SOCKS proxy support
+  - fake-useragent: HTTP request anonymization
+
+**Reporting & Integration:**
+  - Jinja2: Template engine for reports
+  - markdown2: Markdown processing
+  - reportlab & WeasyPrint: PDF report generation
+  - jira: JIRA integration
+  - defectdojo-api: DefectDojo integration
+
+**Development Tools:**
+  - pytest: Testing framework
+  - black: Code formatting
+  - isort: Import sorting
+  - mypy: Type checking
+  - flake8: Code linting
+
+## **Architecture:**
+  **Enviroment:** Python Docker, CLI 
+  **Structure:** Modular plugin-based architecture
+  **Workflow:** Stage-based workflow system
+  **Framework:** Asynchronous execution model
+  **Error Handling:** Comprehensive error handling
+  **Configuration:** Flexible configuration system
+  **Feature:** Parallel processing capabilities
+
+## **Critical Patterns & Conventions**
+  - When ever possible recommend building an AI-First solution, where solution uses an AI to make the user experience easy and streamlines. 
+
+  - Prioritize using open source packages whenever you can instead of building your own. Preferred package repository is npm, but do also search for open source github repos. 
+  - Prioritize `@Docs` for internal documentation and `@Web` for external resources.
+  - Use `@Git` and `@Folders` in combination to understand the codebase structure and history.
+  - Structure tool calls logically, documenting the rationale before execution.
+  - For complex tasks, break them down into smaller, manageable steps using tool calls.
+  - When using `@Files` or `@Code`, specify the file path and relevant code sections clearly.
+  - If a tool call fails, attempt to diagnose the issue using error messages and logs. Refer to the troubleshooting guides if needed:
+      - @Common Issues
+      - @Troubleshooting Guide
+  - Follow consistent naming conventions (e.g., camelCase for variables, PascalCase for classes).
+  - Use meaningful variable and function names.
+  - Write clear and concise comments.
+  - Break down complex functions into smaller, more manageable units.
+  - Handle errors gracefully and provide informative error messages.
+  - Write unit and integration tests for critical components.
+  - Keep code DRY (Don't Repeat Yourself) by abstracting reusable logic into functions or modules.
+
+## **Constraints**
+  - You have a limited context window (Claude's limitation).
+  - You can make up to 25 tool calls per turn in Agent Composer mode.
+  - Adhere to the "Cursor AI Operating Instructions" provided separately.
+  - Prioritize code quality, maintainability, and security.
+  - Avoid making assumptions; ask clarifying questions when needed.
+
+## **Tokenization Settings**
+  - Estimated chars-per-token: 3.5  
+  - Max tokens for the AI: 120 0000
+  - Plan for summary when **workflow-state.mdc** exceeds ~12 K chars.
+
+---
+
+## Changelog
+<!-- The agent prepends the latest summary here as a new list item after each VALIDATE phase -->
+

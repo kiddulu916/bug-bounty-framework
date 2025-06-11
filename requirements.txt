@@ -35,3 +35,67 @@ dnspython[doh]>=2.2.0
 # For enhanced HTTP requests
 aiohttp-socks>=0.7.0
 fake-useragent>=1.1.0
+
+# For plugin version validation
+semver>=3.0.0
+
+# Service Layer Dependencies
+prometheus-client>=0.16.0
+
+# Security Layer Dependencies
+PyJWT>=2.6.0  # For JWT token handling
+bcrypt>=4.0.1  # For password hashing
+
+# Integration Layer Dependencies
+redis>=4.5.0    # For Redis integration
+asyncpg>=0.27.0 # For PostgreSQL integration
+aioredis>=2.0.0 # For async Redis client
+aio-pika>=9.0.0 # For RabbitMQ integration
+tenacity>=8.0.0 # For retry logic
+backoff>=2.2.0  # For exponential backoff
+
+# Development Tools Dependencies
+click>=8.0.0      # For CLI interface
+jinja2>=3.0.0     # For template rendering
+pdoc>=12.0.0      # For documentation generation
+pytest>=7.0.0     # For testing
+pytest-cov>=3.0.0 # For test coverage
+cookiecutter>=2.0.0 # For project templates
+
+# DNS and Network
+dnspython>=2.4.2
+aiohttp>=3.9.1
+whois>=0.9.27
+
+# Testing
+pytest>=7.4.3
+pytest-asyncio>=0.23.2
+pytest-cov>=4.1.0
+
+# Database
+SQLAlchemy>=2.0.0
+alembic>=1.12.0
+psycopg2-binary>=2.9.9  # PostgreSQL adapter
+asyncpg>=0.29.0  # Async PostgreSQL adapter
+
+# Core dependencies
+aiohttp>=3.9.0
+aiofiles>=23.2.1
+asyncio>=3.4.3
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+black>=23.9.0
+isort>=5.12.0
+mypy>=1.5.0
+ruff>=0.1.0
+
+# Plugin dependencies
+dnspython>=2.4.0  # For DNS operations
+python-whois>=0.8.0  # For WHOIS lookups
+beautifulsoup4>=4.12.0  # For HTML parsing
+cryptography>=41.0.0  # For SSL/TLS operations
+requests>=2.31.0  # For HTTP requests
+python-nmap>=0.7.1  # For port scanning

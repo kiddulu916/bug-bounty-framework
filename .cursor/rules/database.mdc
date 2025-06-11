@@ -1,0 +1,183 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: Centra
+globs:
+alwaysApply: true
+---
+"""
+Database Rules and Structure
+
+This document defines the rules and structure for the centralized database used across all stages and plugins.
+
+## Database Structure
+
+### Table: findings
+Primary table storing all findings across all stages. Each row represents a unique subdomain and its associated data.
+
+Database Title:
+- root_domain (TEXT NOT NULL)      # The target root domain (e.g., example.com)
+
+Columns:
+- id (INTEGER PRIMARY KEY)
+- subdomain (TEXT NOT NULL)        # The discovered subdomain
+- ipv4 (TEXT)                      # IPv4 address if available
+- ipv6 (TEXT)                      # IPv6 address if available
+- open_ports (TEXT)                # JSON array of discovered ports
+- services (TEXT)                  # JSON object mapping ports to services
+- tls_status (TEXT)                # JSON object with TLS certificate details
+- vuln_status (TEXT)               # JSON array of discovered vulnerabilities
+- web_tech (TEXT)                  # JSON array of detected web technologies
+- headers (TEXT)                   # JSON object of HTTP headers
+- cookies (TEXT)                   # JSON array of cookies
+- source (TEXT NOT NULL)           # Discovery method (e.g., 'dns_bruteforce', 'ct_logs')
+- confidence (FLOAT NOT NULL)      # Confidence score (0.0 to 1.0)
+- first_seen (DATETIME NOT NULL)   # First discovery timestamp
+- last_seen (DATETIME NOT NULL)    # Last update timestamp
+- metadata (TEXT)                  # JSON object with additional data
+- stage (TEXT NOT NULL)            # Current stage (e.g., 'recon', 'vuln_scan')
+- status (TEXT NOT NULL)           # Current status (e.g., 'active', 'inactive', 'vulnerable')
+
+Indexes:
+- idx_findings_domain (root_domain)
+- idx_findings_subdomain (subdomain)
+- idx_findings_ipv4 (ipv4)
+- idx_findings_source (source)
+- idx_findings_seen (first_seen, last_seen)
+- idx_findings_stage (stage)
+- idx_findings_status (status)
+
+## Database Rules
+
+1. Data Preservation
+   - NEVER overwrite existing data
+   - Always append new findings to existing records
+   - Update last_seen timestamp when new data is added
+   - Preserve historical data in metadata
+
+2. Data Updates
+   - New ports should be appended to open_ports
+   - New services should be merged with existing services
+   - New vulnerabilities should be appended to vuln_status
+   - New web technologies should be appended to web_tech
+   - Headers and cookies should be updated if changed
+   - Confidence scores should be updated based on new findings
+
+3. Data Relationships
+   - Each subdomain is unique per root domain
+   - All findings for a subdomain are stored in a single row
+   - Different stages can update different columns
+   - Plugins can read any column but should only update their relevant columns
+
+4. Data Validation
+   - All JSON fields must be valid JSON
+   - Timestamps must be in UTC
+   - Confidence scores must be between 0.0 and 1.0
+   - IP addresses must be valid IPv4 or IPv6
+   - Port numbers must be between 1 and 65535
+
+5. Data Access
+   - Plugins should use the finding_service for all database operations
+   - Direct database access is not allowed
+   - All database operations must be logged
+   - Failed operations must be retried with exponential backoff
+
+6. Data Migration
+   - Database schema changes require migration scripts
+   - Migrations must preserve existing data
+   - Migrations must be backward compatible
+   - Migrations must be tested before deployment
+
+## Example Operations
+
+1. Adding New Finding:
+```python
+# New subdomain
+await finding_service.add_finding(
+    root_domain="example.com",
+    subdomain="www",
+    ipv4="93.184.216.34",
+    source="dns_bruteforce",
+    confidence=0.9,
+    stage="recon"
+)
+
+# Updating existing subdomain
+await finding_service.update_finding(
+    root_domain="example.com",
+    subdomain="www",
+    new_ports=[80, 443],
+    new_services={"80": "http", "443": "https"},
+    stage="port_scan"
+)
+```
+
+2. Querying Findings:
+```python
+# Get all subdomains for a domain
+subdomains = await finding_service.get_subdomains("example.com")
+
+# Get vulnerable subdomains
+vulnerable = await finding_service.get_vulnerable_subdomains("example.com")
+
+# Get subdomains with specific service
+http_hosts = await finding_service.get_subdomains_by_service("example.com", "http")
+```
+
+## Stage-Specific Rules
+
+1. Reconnaissance Stage
+   - Can update: subdomain, ipv4, ipv6, source, confidence
+   - Should set stage="recon"
+   - Should set status="active" for found subdomains
+
+2. Port Scanning Stage
+   - Can update: open_ports, services
+   - Should read existing ports before scanning
+   - Should merge new findings with existing data
+
+3. Vulnerability Scanning Stage
+   - Can update: vuln_status, tls_status
+   - Should read existing vulnerabilities
+   - Should update status based on findings
+
+4. Web Technology Detection Stage
+   - Can update: web_tech, headers, cookies
+   - Should read existing technologies
+   - Should append new findings
+
+## Error Handling
+
+1. Database Errors
+   - Log all database errors
+   - Implement retry logic
+   - Maintain data consistency
+   - Report errors to monitoring system
+
+2. Data Validation Errors
+   - Log validation failures
+   - Skip invalid data
+   - Report issues to monitoring system
+   - Maintain audit trail
+
+3. Concurrent Access
+   - Use transactions for updates
+   - Implement proper locking
+   - Handle deadlocks gracefully
+   - Maintain data integrity
+
+
+
+
+
+
+
+
+
+
+
+
+"""

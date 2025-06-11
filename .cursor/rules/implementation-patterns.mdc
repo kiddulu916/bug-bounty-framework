@@ -1,0 +1,349 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Bug Bounty Framework Implementation Patterns
+
+## Core Patterns
+
+### 1. Plugin System Pattern
+```python
+@plugin
+class CustomPlugin(BasePlugin):
+    # Required metadata
+    name: str = "custom_plugin"
+    description: str = "Plugin description"
+    version: str = "1.0.0"
+    
+    # Optional configuration
+    enabled: bool = True
+    required_ports: List[int] = []
+    required_protocols: List[str] = []
+    depends_on: List[str] = []
+    timeout: int = 300
+    
+    async def execute(self, target: str, **kwargs) -> Dict[str, Any]:
+        """Core plugin logic."""
+        pass
+    
+    async def setup(self) -> None:
+        """Plugin initialization."""
+        pass
+    
+    async def cleanup(self) -> None:
+        """Plugin cleanup."""
+        pass
+```
+
+#### Plugin System Rules:
+1. All plugins must use the `@plugin` decorator
+2. Must inherit from `BasePlugin`
+3. Must define required metadata (name, description, version)
+4. Must implement `execute()` method
+5. Should implement `setup()` and `cleanup()` if needed
+6. Should use type hints for all methods
+7. Should handle errors gracefully
+8. Should use async/await for I/O operations
+9. Should use the plugin's logger for logging
+10. Should implement proper state management
+
+### 2. Framework Pattern
+```python
+class BFFramework:
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        self.config = config or {}
+        self.state = StateManager()
+        self.plugin_registry = PluginRegistry()
+        self.stages: Dict[str, Stage] = {}
+        self.plugins: Dict[str, BasePlugin] = {}
+    
+    async def initialize(self) -> None:
+        """Framework initialization."""
+        pass
+    
+    async def run_stage(self, stage_name: str, **kwargs) -> Dict[str, Any]:
+        """Run a specific stage."""
+        pass
+    
+    async def run_all_stages(self, **kwargs) -> Dict[str, Any]:
+        """Run all stages in sequence."""
+        pass
+    
+    async def close(self) -> None:
+        """Framework cleanup."""
+        pass
+```
+
+#### Framework Rules:
+1. Must implement proper initialization
+2. Must handle stage execution
+3. Must manage plugin lifecycle
+4. Must handle errors gracefully
+5. Must implement proper cleanup
+6. Should use async/await for I/O operations
+7. Should use the framework's logger
+8. Should implement proper state management
+9. Should handle configuration properly
+10. Should implement proper resource management
+
+### 3. Stage Pattern
+```python
+class CustomStage(Stage):
+    def __init__(self, framework: BFFramework):
+        super().__init__(framework)
+        self.name = "custom_stage"
+        self.log = logging.getLogger(f"bbf.stage.{self.name}")
+    
+    async def run(self, **kwargs) -> Dict[str, Any]:
+        """Stage execution logic."""
+        pass
+    
+    async def get_plugins(self) -> List[str]:
+        """Get plugins for this stage."""
+        return []
+    
+    async def run_plugins(self, **kwargs) -> Dict[str, Any]:
+        """Run stage plugins."""
+        pass
+```
+
+#### Stage Rules:
+1. Must inherit from `Stage`
+2. Must implement `run()` method
+3. Should implement `get_plugins()` method
+4. Should use async/await for I/O operations
+5. Should use the stage's logger
+6. Should handle errors gracefully
+7. Should implement proper state management
+8. Should handle plugin execution properly
+9. Should implement proper cleanup
+10. Should document stage behavior
+
+### 4. State Management Pattern
+```python
+class StateManager:
+    def __init__(self, state_dir: Optional[str] = None):
+        self.state_dir = state_dir
+        self.state: Dict[str, Any] = {}
+    
+    def set_state(self, key: str, value: Any) -> None:
+        """Set state value."""
+        pass
+    
+    def get_state(self, key: str) -> Any:
+        """Get state value."""
+        pass
+    
+    def save_state(self) -> None:
+        """Persist state."""
+        pass
+    
+    def load_state(self) -> None:
+        """Load persisted state."""
+        pass
+```
+
+#### State Management Rules:
+1. Must implement proper state initialization
+2. Must handle state persistence
+3. Must implement proper error handling
+4. Should use atomic operations
+5. Should implement state validation
+6. Should handle state migration
+7. Should implement proper cleanup
+8. Should use proper locking mechanisms
+9. Should implement state versioning
+10. Should handle state conflicts
+
+### 5. Error Handling Pattern
+```python
+try:
+    # Operation that might fail
+    result = await operation()
+except SpecificError as e:
+    # Handle specific error
+    logger.error(f"Operation failed: {e}")
+    raise CustomError("Operation failed") from e
+except Exception as e:
+    # Handle unexpected error
+    logger.error(f"Unexpected error: {e}", exc_info=True)
+    raise FrameworkError("Unexpected error") from e
+finally:
+    # Cleanup
+    await cleanup()
+```
+
+#### Error Handling Rules:
+1. Must use custom exception classes
+2. Must include original error in chain
+3. Must log errors appropriately
+4. Must clean up resources in finally block
+5. Must use specific exception types
+6. Must document possible exceptions
+7. Must handle errors at appropriate level
+8. Must provide meaningful error messages
+9. Must include context in error messages
+10. Must use error codes for known issues
+
+### 6. Logging Pattern
+```python
+# Module-level logger
+logger = logging.getLogger(__name__)
+
+# Plugin/Stage logger
+self.log = logging.getLogger(f"bbf.{self.__class__.__name__}")
+
+# Logging levels
+logger.debug("Detailed information")
+logger.info("General information")
+logger.warning("Warning message")
+logger.error("Error message", exc_info=True)
+```
+
+#### Logging Rules:
+1. Must use module-level loggers
+2. Must use appropriate log levels
+3. Must include context in log messages
+4. Must use structured logging
+5. Must include timestamps
+6. Must log exceptions with traceback
+7. Must use consistent log format
+8. Must configure log rotation
+9. Must include correlation IDs
+10. Must log performance metrics
+
+### 7. Configuration Pattern
+```python
+# Plugin configuration
+config = {
+    'enabled': True,
+    'timeout': 300,
+    'custom_setting': 'value'
+}
+
+# Stage configuration
+stage_config = {
+    'enabled': True,
+    'plugins': ['plugin1', 'plugin2'],
+    'custom_setting': 'value'
+}
+
+# Framework configuration
+framework_config = {
+    'target': 'example.com',
+    'output_dir': 'reports',
+    'log_level': 'INFO',
+    'stages': {
+        'stage_name': stage_config
+    },
+    'plugins': {
+        'plugin_name': config
+    }
+}
+```
+
+#### Configuration Rules:
+1. Must use YAML for configuration files
+2. Must follow hierarchical structure
+3. Must document all configuration options
+4. Must provide default values
+5. Must validate configuration
+6. Must use type hints for config values
+7. Must handle configuration inheritance
+8. Must support environment variables
+9. Must log configuration changes
+10. Must use secure storage for secrets
+
+### 8. Resource Management Pattern
+```python
+class ResourceManager:
+    def __init__(self):
+        self.resources: Dict[str, Any] = {}
+    
+    async def acquire(self, resource_id: str) -> Any:
+        """Acquire a resource."""
+        pass
+    
+    async def release(self, resource_id: str) -> None:
+        """Release a resource."""
+        pass
+    
+    async def cleanup(self) -> None:
+        """Clean up all resources."""
+        pass
+```
+
+#### Resource Management Rules:
+1. Must implement proper resource acquisition
+2. Must implement proper resource release
+3. Must handle resource cleanup
+4. Must implement proper error handling
+5. Must use async context managers
+6. Must implement resource pooling
+7. Must handle resource timeouts
+8. Must implement proper locking
+9. Must handle resource conflicts
+10. Must implement proper monitoring
+
+### 9. Plugin Discovery Pattern
+```python
+async def discover_plugins(
+    directory: Union[str, Path],
+    base_class: Type[BasePlugin],
+    recursive: bool = False
+) -> Dict[str, Type[BasePlugin]]:
+    """Discover plugins in a directory."""
+    pass
+
+async def discover_plugins_in_package(
+    package,
+    base_class: Type[BasePlugin],
+    recursive: bool = True
+) -> Dict[str, Type[BasePlugin]]:
+    """Discover plugins in a package."""
+    pass
+```
+
+#### Plugin Discovery Rules:
+1. Must handle plugin loading errors
+2. Must validate plugin classes
+3. Must handle duplicate plugins
+4. Must implement proper error logging
+5. Must handle recursive discovery
+6. Must validate plugin dependencies
+7. Must handle plugin initialization
+8. Must implement proper cleanup
+9. Must handle plugin conflicts
+10. Must implement proper caching
+
+### 10. Async Operation Pattern
+```python
+async def operation(self) -> Dict[str, Any]:
+    """Async operation with proper error handling."""
+    try:
+        # Async operation
+        result = await self._do_async_work()
+        return result
+    except Exception as e:
+        self.log.error(f"Async operation failed: {e}")
+        raise
+
+async def parallel_operations(self, items: List[str]) -> List[Any]:
+    """Run operations in parallel."""
+    tasks = [self._process_item(item) for item in items]
+    return await asyncio.gather(*tasks, return_exceptions=True)
+```
+
+#### Async Operation Rules:
+1. Must use async/await consistently
+2. Must handle async errors properly
+3. Must use asyncio.gather for parallel operations
+4. Must implement proper cleanup
+5. Must use async context managers
+6. Must document async behavior
+7. Must handle cancellation
+8. Must use appropriate timeouts
+9. Must implement backoff strategies
+10. Must monitor async performance
+
