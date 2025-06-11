@@ -28,7 +28,7 @@ from .exceptions import (
     PluginExecutionError
 )
 from .plugin import BasePlugin, PluginRegistry
-from .metadata import PluginMetadataManager
+from .metadata_manager import PluginMetadataManager
 
 logger = logging.getLogger(__name__)
 

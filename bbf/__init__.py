@@ -42,7 +42,7 @@ __description__ = "A modular, extensible framework for bug bounty and security t
 # Import core components for easier access
 from bbf.core.framework import BFFramework
 from bbf.core.config import load_config
-from bbf.core.plugin import BasePlugin, plugin
+from bbf.core.base import BasePlugin
 from bbf.core.state import StateManager
 
 # Import stages
@@ -59,7 +59,6 @@ __all__ = [
     'BFFramework',
     'load_config',
     'BasePlugin',
-    'plugin',
     'StateManager',
     'Stage',  # Exported as Stage, not BaseStage
     'ReconStage',

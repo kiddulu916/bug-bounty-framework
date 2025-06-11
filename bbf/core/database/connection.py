@@ -8,6 +8,7 @@ This module provides:
 - Transaction management
 """
 
+import os
 import logging
 from contextlib import contextmanager
 from typing import Generator, Any, Callable, Optional
@@ -24,22 +25,75 @@ from bbf.core.database.models import Base
 logger = logging.getLogger(__name__)
 
 class DatabaseManager:
-    """Database connection and session manager."""
+    """Manages database connections and sessions."""
     
     def __init__(self):
         """Initialize the database manager."""
-        self.engine = create_engine(
-            db_config.connection_url,
-            **db_config.engine_options
-        )
-        self.Session = sessionmaker(
-            bind=self.engine,
-            expire_on_commit=False
-        )
+        self._engine = None
+        self._session_factory = None
+        self._is_initialized = False
+    
+    @property
+    def engine(self):
+        """Get the database engine."""
+        if not self._engine:
+            self._initialize()
+        return self._engine
+    
+    @property
+    def session_factory(self):
+        """Get the session factory."""
+        if not self._session_factory:
+            self._initialize()
+        return self._session_factory
+    
+    def _get_connection_url(self) -> str:
+        """Get the database connection URL."""
+        if os.getenv("BBF_TESTING") == "true":
+            # Use SQLite for testing
+            return "sqlite:///:memory:"
         
+        # Use PostgreSQL for production
+        host = os.getenv("BBF_DB_HOST", "localhost")
+        port = os.getenv("BBF_DB_PORT", "5432")
+        user = os.getenv("BBF_DB_USER", "postgres")
+        password = os.getenv("BBF_DB_PASSWORD", "postgres")
+        database = os.getenv("BBF_DB_NAME", "bug_bounty_framework")
+        
+        return f"postgresql://{user}:{password}@{host}:{port}/{database}"
+    
+    def _initialize(self):
+        """Initialize the database connection."""
+        if self._is_initialized:
+            return
+        
+        try:
+            connection_url = self._get_connection_url()
+            logger.info(f"Initializing database connection to {connection_url}")
+            
+            self._engine = create_engine(
+                connection_url,
+                echo=os.getenv("BBF_DB_ECHO", "false").lower() == "true",
+                pool_pre_ping=True,
+                pool_recycle=3600
+            )
+            
+            self._session_factory = sessionmaker(
+                bind=self._engine,
+                expire_on_commit=False
+            )
+            
+            self._is_initialized = True
+            logger.info("Database connection initialized successfully")
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Failed to initialize database: {e}")
+            raise
+    
     def create_tables(self) -> None:
         """Create all database tables."""
         try:
+            logger.info("Creating database tables")
             Base.metadata.create_all(self.engine)
             logger.info("Database tables created successfully")
         except SQLAlchemyError as e:
@@ -66,13 +120,12 @@ class DatabaseManager:
             with db_manager.get_session() as session:
                 result = session.query(Model).all()
         """
-        session = self.Session()
+        session = self.session_factory()
         try:
             yield session
             session.commit()
-        except SQLAlchemyError as e:
+        except Exception:
             session.rollback()
-            logger.error(f"Database session error: {e}")
             raise
         finally:
             session.close()
@@ -135,12 +188,14 @@ class DatabaseManager:
             'ssl_mode': db_config.ssl_mode
         }
 
-# Create database manager instance
+    def close(self):
+        """Close the database connection."""
+        if self._engine:
+            self._engine.dispose()
+            self._is_initialized = False
+            logger.info("Database connection closed")
+
+# Create a global database manager instance
 db_manager = DatabaseManager()
 
-# Create tables on import
-try:
-    db_manager.create_tables()
-except SQLAlchemyError as e:
-    logger.error(f"Failed to initialize database: {e}")
-    raise 
+# (Removed: Only create tables if not in test mode) 

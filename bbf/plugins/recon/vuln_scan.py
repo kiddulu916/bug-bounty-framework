@@ -1,12 +1,8 @@
 """
-Vulnerability Scanner Plugin for Bug Bounty Framework.
+Vulnerability Scanner Plugin for the Bug Bounty Framework.
 
-This plugin implements various vulnerability scanning techniques to identify
-security issues in web applications, including:
-- Common vulnerability checks (XSS, SQLi, etc.)
-- Misconfiguration detection
-- Security header analysis
-- SSL/TLS analysis
+This plugin performs automated vulnerability scanning against web applications,
+testing for common security issues like SQL injection, XSS, and more.
 """
 
 import asyncio
@@ -21,9 +17,11 @@ from urllib.parse import urljoin, urlparse
 import aiohttp
 import OpenSSL
 from datetime import datetime
+from bs4 import BeautifulSoup
 
-from bbf.core.plugin import BasePlugin, PluginError
-from bbf.core.types import ScanResult, ScanStatus
+from bbf.core.base import BasePlugin
+from bbf.core.exceptions import PluginError
+from bbf.core.validation import validate_plugin
 
 logger = logging.getLogger(__name__)
 

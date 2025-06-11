@@ -77,7 +77,7 @@ class Finding(Base):
     confidence = Column(Float, nullable=False, default=0.0)  # Confidence score
     first_seen = Column(DateTime, default=datetime.utcnow, nullable=False)
     last_seen = Column(DateTime, default=datetime.utcnow, nullable=False)
-    metadata = Column(JSON, nullable=True)  # Additional metadata
+    extra_metadata = Column(JSON, nullable=True, default=dict, comment="Additional extra metadata (e.g. extra details, extra info)")
     stage = Column(String(50), nullable=False)  # recon, vuln, etc.
     status = Column(String(50), nullable=False, default='active')  # active, inactive, fixed, etc.
     

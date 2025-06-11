@@ -1,5 +1,8 @@
 """
-Utility functions for plugin management in the Bug Bounty Framework.
+Utility functions for working with plugins.
+
+This module provides helper functions for plugin management, discovery,
+and validation.
 """
 
 import importlib
@@ -9,7 +12,7 @@ import pkgutil
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Type, TypeVar, Any, Union
 
-from bbf.core.plugin import BasePlugin
+from bbf.core.base import BasePlugin
 from bbf.core.exceptions import PluginError
 
 logger = logging.getLogger(__name__)

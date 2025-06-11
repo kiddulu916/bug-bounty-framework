@@ -56,6 +56,272 @@ alwaysApply: true
 
 *No active epics currently planned. Use @EPIC or @EPICS to create new epic plans.*
 
+### EPIC-003: Advanced Security Testing Capabilities
+**Status**: PLANNED
+**Priority**: High
+**Started**: 2024-03-21
+**Target Completion**: 2024-06-21
+
+#### Goal
+Implement advanced security testing capabilities to enhance the framework's ability to detect and validate complex security vulnerabilities, with a focus on AI-assisted analysis and automated exploitation testing.
+
+#### Success Criteria
+- [ ] Framework can detect and validate complex security vulnerabilities
+- [ ] AI-assisted analysis provides actionable insights
+- [ ] Automated exploitation testing is safe and controlled
+- [ ] Integration with major vulnerability management systems
+- [ ] Comprehensive reporting and remediation guidance
+
+#### Dependencies & Blockers
+- EPIC-001 (Core Framework Enhancement) completion ✅
+- EPIC-002 (Security Testing Capabilities) completion ✅
+- Database integration for findings storage ✅
+- Plugin system for extensibility ✅
+
+#### PHASE 1: Advanced Vulnerability Detection - ⏳ PLANNED
+**Goal**: Implement sophisticated vulnerability detection capabilities with AI assistance
+
+**Steps:**
+1. **AI-ASSISTED_ANALYSIS_STEP**: Implement AI-powered vulnerability analysis - ⏳ 0%
+   - Key requirements: 
+     * Integration with AI models for pattern recognition
+     * Natural language processing for finding analysis
+     * Confidence scoring for findings
+     * False positive reduction
+   - Acceptance criteria:
+     * AI model can analyze findings and provide insights
+     * System can score findings based on confidence
+     * False positive rate is below 5%
+     * Analysis is performed in real-time
+   - Architecture impact:
+     * Introduces AI service integration
+     * Adds new finding analysis patterns
+     * Extends finding metadata schema
+   - AI considerations:
+     * Use existing AI service patterns
+     * Implement proper error handling
+     * Consider rate limits and costs
+   - Status: PLANNED (0%)
+   - Started: [Not started]
+   - Last Updated: [Not started]
+   - Completed: [Not completed]
+   - Notes: Will use OpenAI API for initial implementation
+
+2. **ADVANCED_SCANNING_STEP**: Implement advanced scanning techniques - ⏳ 0%
+   - Key requirements:
+     * GraphQL API testing
+     * WebSocket security testing
+     * JWT token analysis
+     * OAuth flow testing
+   - Acceptance criteria:
+     * All specified protocols are tested
+     * Findings are properly categorized
+     * Rate limiting is implemented
+     * Resource usage is optimized
+   - Architecture impact:
+     * Extends plugin system for new protocols
+     * Adds new scanning patterns
+     * Introduces protocol-specific state management
+   - AI considerations:
+     * Use existing plugin patterns
+     * Implement proper resource management
+     * Consider security implications
+   - Status: PLANNED (0%)
+   - Started: [Not started]
+   - Last Updated: [Not started]
+   - Completed: [Not completed]
+   - Notes: Will prioritize most common protocols first
+
+3. **BUSINESS_LOGIC_TESTING_STEP**: Implement business logic testing - ⏳ 0%
+   - Key requirements:
+     * Workflow analysis
+     * State transition testing
+     * Race condition detection
+     * Business rule validation
+   - Acceptance criteria:
+     * System can analyze application workflows
+     * State transitions are properly tested
+     * Race conditions are detected
+     * Business rules are validated
+   - Architecture impact:
+     * Introduces workflow analysis patterns
+     * Adds state transition tracking
+     * Extends finding types
+   - AI considerations:
+     * Use AI for workflow analysis
+     * Implement proper state management
+     * Consider performance impact
+   - Status: PLANNED (0%)
+   - Started: [Not started]
+   - Last Updated: [Not started]
+   - Completed: [Not completed]
+   - Notes: Will use graph-based analysis for workflows
+
+#### PHASE 2: Exploitation Testing - ⏳ PLANNED
+**Goal**: Implement safe and controlled exploitation testing capabilities
+
+**Steps:**
+1. **EXPLOITATION_FRAMEWORK_STEP**: Build exploitation testing framework - ⏳ 0%
+   - Key requirements:
+     * Safe exploitation environment
+     * Exploit templates
+     * Result validation
+     * Resource isolation
+   - Acceptance criteria:
+     * Exploits are safely executed
+     * Results are properly validated
+     * Resources are isolated
+     * System remains stable
+   - Architecture impact:
+     * Introduces sandboxing patterns
+     * Adds exploit management
+     * Extends security controls
+   - AI considerations:
+     * Use AI for exploit validation
+     * Implement proper isolation
+     * Consider safety implications
+   - Status: PLANNED (0%)
+   - Started: [Not started]
+   - Last Updated: [Not started]
+   - Completed: [Not completed]
+   - Notes: Will use Docker for isolation
+
+2. **EXPLOIT_TEMPLATES_STEP**: Create exploit templates - ⏳ 0%
+   - Key requirements:
+     * Common vulnerability exploits
+     * Custom exploit support
+     * Template validation
+     * Version control
+   - Acceptance criteria:
+     * Templates are properly validated
+     * Custom exploits are supported
+     * Versioning is maintained
+     * Documentation is complete
+   - Architecture impact:
+     * Introduces template system
+     * Adds version control
+     * Extends documentation
+   - AI considerations:
+     * Use AI for template validation
+     * Implement proper versioning
+     * Consider security implications
+   - Status: PLANNED (0%)
+   - Started: [Not started]
+   - Last Updated: [Not started]
+   - Completed: [Not completed]
+   - Notes: Will start with OWASP Top 10 exploits
+
+3. **RESULT_VALIDATION_STEP**: Implement result validation - ⏳ 0%
+   - Key requirements:
+     * Exploit success validation
+     * False positive detection
+     * Impact assessment
+     * Remediation verification
+   - Acceptance criteria:
+     * Results are properly validated
+     * False positives are minimized
+     * Impact is accurately assessed
+     * Remediation is verified
+   - Architecture impact:
+     * Introduces validation patterns
+     * Adds impact assessment
+     * Extends reporting
+   - AI considerations:
+     * Use AI for validation
+     * Implement proper assessment
+     * Consider accuracy implications
+   - Status: PLANNED (0%)
+   - Started: [Not started]
+   - Last Updated: [Not started]
+   - Completed: [Not completed]
+   - Notes: Will use AI for impact assessment
+
+#### PHASE 3: Integration and Reporting - ⏳ PLANNED
+**Goal**: Implement comprehensive integration and reporting capabilities
+
+**Steps:**
+1. **VULNERABILITY_MANAGEMENT_STEP**: Integrate with vulnerability management systems - ⏳ 0%
+   - Key requirements:
+     * DefectDojo integration
+     * JIRA integration
+     * Custom system support
+     * Synchronization
+   - Acceptance criteria:
+     * All systems are integrated
+     * Data is properly synchronized
+     * Custom systems are supported
+     * Documentation is complete
+   - Architecture impact:
+     * Introduces integration patterns
+     * Adds synchronization
+     * Extends API layer
+   - AI considerations:
+     * Use AI for data mapping
+     * Implement proper sync
+     * Consider rate limits
+   - Status: PLANNED (0%)
+   - Started: [Not started]
+   - Last Updated: [Not started]
+   - Completed: [Not completed]
+   - Notes: Will start with DefectDojo
+
+2. **ADVANCED_REPORTING_STEP**: Implement advanced reporting - ⏳ 0%
+   - Key requirements:
+     * Custom report templates
+     * Executive summaries
+     * Technical details
+     * Remediation guidance
+   - Acceptance criteria:
+     * Reports are properly formatted
+     * All required information is included
+     * Guidance is actionable
+     * Templates are customizable
+   - Architecture impact:
+     * Introduces reporting patterns
+     * Adds template system
+     * Extends documentation
+   - AI considerations:
+     * Use AI for summarization
+     * Implement proper formatting
+     * Consider readability
+   - Status: PLANNED (0%)
+   - Started: [Not started]
+   - Last Updated: [Not started]
+   - Completed: [Not completed]
+   - Notes: Will use AI for executive summaries
+
+3. **ANALYTICS_STEP**: Implement security analytics - ⏳ 0%
+   - Key requirements:
+     * Trend analysis
+     * Risk scoring
+     * Progress tracking
+     * Custom metrics
+   - Acceptance criteria:
+     * Trends are properly analyzed
+     * Risk is accurately scored
+     * Progress is tracked
+     * Metrics are customizable
+   - Architecture impact:
+     * Introduces analytics patterns
+     * Adds metrics system
+     * Extends visualization
+   - AI considerations:
+     * Use AI for trend analysis
+     * Implement proper scoring
+     * Consider data quality
+   - Status: PLANNED (0%)
+   - Started: [Not started]
+   - Last Updated: [Not started]
+   - Completed: [Not completed]
+   - Notes: Will use AI for trend prediction
+
+#### Notes
+- 2024-03-21: Epic created, focusing on advanced security testing capabilities
+- Dependencies on EPIC-001 and EPIC-002 are satisfied
+- Will prioritize AI-assisted analysis in Phase 1
+- Exploitation testing will be implemented with strict safety controls
+- Integration with existing systems will be phased
+
 ---
 
 ## EPIC PROGRESS TRACKING
@@ -423,12 +689,12 @@ PLANNED → IN_PROGRESS → COMPLETED
 - [x] Analytics dashboard
 
 ### **EPIC-002: Security Testing Capabilities**
-**Status**: IN_PROGRESS
+**Status**: COMPLETED
 **Priority**: High
 **Description**: Implement core security testing functionality
 
 #### Phase 1: Reconnaissance Tools
-Status: IN_PROGRESS
+Status: COMPLETED
 
 #### Steps:
 1. Implement Base Stage Class ✅
@@ -516,7 +782,7 @@ Status: COMPLETED
   - [x] Result reporting
 
 #### Phase 3: Integration and Testing
-Status: IN_PROGRESS
+Status: COMPLETED
 - [x] Database Integration
   - [x] Design database schema
   - [x] Implement database models
@@ -581,6 +847,8 @@ Status: IN_PROGRESS
 2. Early prototype development
 3. Continuous integration testing
 4. Resource allocation planning
+
+#### Note: Circular import (and SQLAlchemy reserved name) issues resolved, and all tests (after installing sqlalchemy) now run.
 
 ---
 

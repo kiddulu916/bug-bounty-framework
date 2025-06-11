@@ -1,8 +1,8 @@
 """
-Directory bruteforce plugin for the Bug Bounty Framework.
+Directory Bruteforce Plugin for the Bug Bounty Framework.
 
-This module provides the DirBrutePlugin class that implements various
-techniques for discovering directories and files on web servers.
+This plugin performs directory and file bruteforcing against web servers,
+testing for common paths and sensitive files.
 """
 
 import asyncio
@@ -17,12 +17,14 @@ from enum import Enum
 from urllib.parse import urljoin, urlparse
 import aiofiles
 import os
+from bs4 import BeautifulSoup
 
-from bbf.core.plugin import BasePlugin
+from bbf.core.base import BasePlugin
 from bbf.core.exceptions import PluginError
 from bbf.core.database.models import Finding
 from bbf.core.database.service import finding_service
 from bbf.plugins.config import get_wordlist
+from bbf.core.validation import validate_plugin
 
 logger = logging.getLogger(__name__)
 

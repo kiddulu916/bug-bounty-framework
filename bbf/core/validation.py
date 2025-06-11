@@ -1,22 +1,20 @@
 """
-Plugin validation system for the Bug Bounty Framework.
+Plugin validation for the Bug Bounty Framework.
 
-This module provides validation functionality for plugins, including:
-- Schema validation for plugin metadata
-- Interface validation
-- Dependency validation
-- Version compatibility checks
-- Security validation
+This module provides functionality for validating plugins against the framework's requirements.
 """
 
 import re
 import semver
 import inspect
+import logging
 from typing import Dict, Any, List, Set, Type, Optional
 from datetime import datetime
 
-from .exceptions import PluginValidationError
-from .plugin import BasePlugin
+from bbf.core.base import BasePlugin
+from bbf.core.exceptions import PluginValidationError
+
+logger = logging.getLogger(__name__)
 
 # Plugin metadata schema
 PLUGIN_METADATA_SCHEMA = {

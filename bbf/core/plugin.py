@@ -10,6 +10,8 @@ import inspect
 import logging
 import time
 import sys
+import importlib
+from pathlib import Path
 from typing import Dict, List, Optional, Any, Type, Set, Callable, Awaitable, Union
 from datetime import datetime
 
@@ -19,7 +21,8 @@ from bbf.core.exceptions import (
     PluginDependencyError
 )
 from bbf.core.validation import validate_plugin
-from bbf.core.metadata import PluginMetadataManager
+from bbf.core.metadata_manager import PluginMetadataManager
+from bbf.core.base import BasePlugin
 
 logger = logging.getLogger(__name__)
 

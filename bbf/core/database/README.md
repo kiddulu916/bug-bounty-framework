@@ -43,7 +43,7 @@ Database configuration is handled through environment variables:
 # Required
 DB_NAME=bug_bounty_framework
 DB_USER=postgres
-DB_PASSWORD=your_password
+DB_PASSWORD=postgres
 
 # Optional (with defaults)
 DB_HOST=localhost

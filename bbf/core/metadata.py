@@ -14,10 +14,11 @@ import shutil
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Set, Type
 from pathlib import Path
-
 import semver
+import logging
+
 from .exceptions import PluginError, PluginValidationError
-from .plugin import BasePlugin
+from .base import BasePlugin
 from .validation import PLUGIN_METADATA_SCHEMA
 
 logger = logging.getLogger(__name__)
@@ -337,101 +338,4 @@ class PluginMetadata:
                 self.metadata['field_with_bug']
             )
 
-class PluginMetadataManager:
-    """
-    Manages metadata for all plugins.
-    
-    This class provides a central interface for managing plugin metadata,
-    including loading, saving, and migrating metadata.
-    """
-    
-    _instance = None
-    _metadata: Dict[str, PluginMetadata] = {}
-    
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
-    
-    @classmethod
-    def get_metadata(cls, plugin_class: Type[BasePlugin]) -> PluginMetadata:
-        """
-        Get metadata for a plugin.
-        
-        Args:
-            plugin_class: The plugin class to get metadata for
-            
-        Returns:
-            PluginMetadata object for the plugin
-        """
-        name = plugin_class.name
-        if name not in cls._metadata:
-            cls._metadata[name] = PluginMetadata(plugin_class)
-        return cls._metadata[name]
-    
-    @classmethod
-    def update_metadata(cls, plugin_class: Type[BasePlugin], **kwargs) -> None:
-        """
-        Update metadata for a plugin.
-        
-        Args:
-            plugin_class: The plugin class to update metadata for
-            **kwargs: Metadata fields to update
-        """
-        metadata = cls.get_metadata(plugin_class)
-        metadata.update(**kwargs)
-    
-    @classmethod
-    def update_execution_stats(
-        cls,
-        plugin_class: Type[BasePlugin],
-        execution_time: float,
-        success: bool,
-        error: Optional[str] = None
-    ) -> None:
-        """
-        Update execution statistics for a plugin.
-        
-        Args:
-            plugin_class: The plugin class to update stats for
-            execution_time: Time taken to execute the plugin
-            success: Whether execution was successful
-            error: Error message if execution failed
-        """
-        metadata = cls.get_metadata(plugin_class)
-        metadata.update_execution_stats(execution_time, success, error)
-    
-    @classmethod
-    def validate_all(cls) -> bool:
-        """
-        Validate metadata for all plugins.
-        
-        Returns:
-            bool: True if all metadata is valid, False otherwise
-            
-        Raises:
-            PluginValidationError: If validation fails
-        """
-        for metadata in cls._metadata.values():
-            if not metadata.validate():
-                return False
-        return True
-    
-    @classmethod
-    def migrate_all(cls, target_version: str) -> None:
-        """
-        Migrate metadata for all plugins to a new version.
-        
-        Args:
-            target_version: Target version to migrate to
-            
-        Raises:
-            PluginError: If migration fails
-        """
-        for metadata in cls._metadata.values():
-            metadata.migrate(target_version)
-    
-    @classmethod
-    def clear_cache(cls) -> None:
-        """Clear the metadata cache."""
-        cls._metadata.clear() 
+# PluginMetadataManager is now in metadata_manager.py 
