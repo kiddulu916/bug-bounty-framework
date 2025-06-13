@@ -1,0 +1,196 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Test Suite Rules and Structure
+
+## Test Directory Structure
+
+```
+tests/
+├── core/                    # Tests for core framework components
+│   ├── test_execution.py    # Tests for ExecutionEngine
+│   ├── test_framework.py    # Tests for BugBountyFramework
+│   ├── test_monitoring.py   # Tests for AIMonitoringService
+│   ├── test_stage.py        # Tests for Stage
+│   └── test_validation.py   # Tests for ValidationManager
+├── plugins/                 # Tests for plugin implementations
+│   ├── test_port_scan.py    # Tests for PortScanPlugin
+│   └── test_vuln_scan.py    # Tests for VulnScanPlugin
+├── integration/            # Integration tests
+│   ├── test_plugin_stage.py # Tests plugin integration with stages
+│   └── test_framework_flow.py # Tests full framework workflows
+└── conftest.py            # Shared test fixtures and configuration
+```
+
+## Test File Naming and Location Rules
+
+1. Test files MUST be named `test_<module_name>.py` where `<module_name>` matches the name of the module being tested
+2. Test files MUST be placed in a directory structure that mirrors the source code structure
+3. Test files MUST be located in the `tests/` directory
+4. Integration tests MUST be placed in `tests/integration/`
+5. Core component tests MUST be placed in `tests/core/`
+6. Plugin tests MUST be placed in `tests/plugins/`
+
+## Test File Creation and Modification Rules
+
+1. Before creating a new test file:
+   - Check if the file already exists in the expected location
+   - If exists, modify the existing file instead of creating a new one
+   - If modifying, preserve existing test cases unless they are explicitly being replaced
+
+2. When modifying existing test files:
+   - Review existing test cases to avoid duplication
+   - Update docstrings and comments to reflect changes
+   - Ensure backward compatibility with existing test fixtures
+   - Maintain consistent test naming conventions
+
+## Test Implementation Rules
+
+1. Test Structure:
+   ```python
+   """
+   Tests for <module_name>.
+   
+   This module contains tests for the <class_name> class, including tests for
+   <specific functionality being tested>.
+   """
+   
+   import pytest
+   from unittest.mock import AsyncMock, MagicMock, patch
+   
+   from bbf.<module_path> import <class_name>
+   
+   @pytest.fixture
+   async def <fixture_name>():
+       """Create a <class_name> instance for testing."""
+       # Setup code
+       yield instance
+       # Cleanup code
+   
+   @pytest.mark.asyncio
+   async def test_<specific_test_case>():
+       """Test <specific functionality>."""
+       # Test implementation
+   ```
+
+2. Test Categories (each test file should include):
+   - Basic functionality tests
+   - Error handling tests
+   - Edge case tests
+   - Integration tests (if applicable)
+   - Performance tests (if applicable)
+
+3. Test Naming Conventions:
+   - Use descriptive names that indicate what is being tested
+   - Follow pattern: `test_<functionality>_<scenario>`
+   - Group related tests with similar prefixes
+   - Use underscores to separate words
+
+4. Test Documentation:
+   - Each test file MUST have a module docstring
+   - Each test function MUST have a docstring
+   - Complex test logic MUST be documented with comments
+   - Test fixtures MUST be documented
+
+## Test Debugging and Error Resolution
+
+1. When a test fails:
+   - Analyze both the test file and the implementation file
+   - Determine if the failure is due to:
+     a) Incorrect test implementation
+     b) Incorrect implementation of the tested code
+     c) Changes in requirements or specifications
+
+2. Error Analysis Process:
+   ```python
+   # Example error analysis
+   def analyze_test_failure(test_file, impl_file, error):
+       """
+       Analyze test failure and determine root cause.
+       
+       Returns:
+           dict: {
+               'root_cause': 'test' | 'implementation' | 'requirement',
+               'suggestion': str,
+               'fix_required_in': 'test_file' | 'impl_file'
+           }
+       """
+   ```
+
+3. Common Test Issues and Solutions:
+   - Mocking errors: Check mock setup and assertions
+   - Async timing issues: Review async/await usage
+   - Resource cleanup: Verify fixture cleanup
+   - State management: Check test isolation
+
+4. Implementation Issues and Solutions:
+   - API changes: Update tests to match new API
+   - Logic errors: Fix implementation, then update tests
+   - Performance issues: Add performance tests
+   - Resource leaks: Add cleanup tests
+
+## Test Quality Standards
+
+1. Coverage Requirements:
+   - Minimum 80% code coverage for all modules
+   - 100% coverage for critical security functions
+   - All public methods must have tests
+   - All error paths must be tested
+
+2. Test Quality Checklist:
+   - [ ] Tests are isolated and independent
+   - [ ] Tests are deterministic
+   - [ ] Tests are fast and efficient
+   - [ ] Tests use appropriate fixtures
+   - [ ] Tests handle cleanup properly
+   - [ ] Tests include proper assertions
+   - [ ] Tests document expected behavior
+   - [ ] Tests follow naming conventions
+   - [ ] Tests are properly categorized
+   - [ ] Tests include error cases
+
+3. Performance Requirements:
+   - Individual tests should complete in < 1 second
+   - Test suites should complete in < 5 minutes
+   - Resource usage should be minimal
+   - Tests should not make external calls
+
+## Test Maintenance
+
+1. Regular Tasks:
+   - Review and update test documentation
+   - Clean up obsolete tests
+   - Update test dependencies
+   - Monitor test performance
+   - Update test fixtures as needed
+
+2. Version Control:
+   - Test files should be committed with implementation
+   - Test updates should be atomic
+   - Test changes should be documented
+   - Test history should be preserved
+
+3. Continuous Integration:
+   - Tests must pass in CI environment
+   - Coverage reports must be generated
+   - Test performance must be monitored
+   - Test results must be archived
+
+## Test Security
+
+1. Security Requirements:
+   - Tests must not expose sensitive data
+   - Tests must not make real network calls
+   - Tests must use secure test data
+   - Tests must clean up test data
+   - Tests must not introduce vulnerabilities
+
+2. Test Data Management:
+   - Use mock data for sensitive information
+   - Clean up test data after tests
+   - Use secure test fixtures
+   - Avoid hardcoding credentials
+   - Use environment variables for configuration
+

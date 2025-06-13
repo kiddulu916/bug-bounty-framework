@@ -15,7 +15,7 @@ import asyncio
 import json
 import logging
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union
@@ -165,8 +165,8 @@ class IntegrationConfig:
                 'health_check_interval': 30,
                 'log_level': 'INFO'
             },
-            'created_at': datetime.utcnow().isoformat(),
-            'updated_at': datetime.utcnow().isoformat()
+            'created_at': datetime.now(UTC).isoformat(),
+            'updated_at': datetime.now(UTC).isoformat()
         }
     
     def _save_config(self) -> None:
@@ -204,7 +204,7 @@ class IntegrationConfig:
             value: Configuration value
         """
         self.config[key] = value
-        self.config['updated_at'] = datetime.utcnow().isoformat()
+        self.config['updated_at'] = datetime.now(UTC).isoformat()
         self._save_config()
     
     def update(self, **kwargs) -> None:
@@ -215,7 +215,7 @@ class IntegrationConfig:
             **kwargs: Configuration key-value pairs
         """
         self.config.update(kwargs)
-        self.config['updated_at'] = datetime.utcnow().isoformat()
+        self.config['updated_at'] = datetime.now(UTC).isoformat()
         self._save_config()
 
 class IntegrationManager:
@@ -708,7 +708,7 @@ class IntegrationManager:
             message = json.dumps({
                 'type': event_type,
                 'data': event_data,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(UTC).isoformat()
             })
             await redis.publish(f"events:{event_type}", message)
             

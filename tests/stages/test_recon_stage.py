@@ -11,8 +11,8 @@ import json
 from datetime import datetime
 
 from bbf.stages.recon import ReconStage
-from bbf.plugins.recon.subdomain import SubdomainEnumPlugin
-from bbf.plugins.recon.portscan import PortScanPlugin
+from bbf.plugins.recon.subdomain_enum import SubdomainEnumPlugin
+from bbf.plugins.recon.port_scan import PortScannerPlugin
 from bbf.core.exceptions import PluginError, StageError
 
 # Test data
@@ -62,9 +62,8 @@ TEST_OPEN_PORTS = {
 @pytest.fixture
 def stage():
     """Create a recon stage instance for testing."""
-    class DummyFramework:
-        pass
-    return ReconStage(DummyFramework())
+    config = {'timeout': 30, 'plugins': []}
+    return ReconStage(config)
 
 @pytest.fixture
 def mock_env_vars():
@@ -115,7 +114,7 @@ async def test_stage_initialization(stage):
     assert stage.enabled is True
     assert len(stage.plugins) > 0
     assert any(isinstance(p, SubdomainEnumPlugin) for p in stage.plugins)
-    assert any(isinstance(p, PortScanPlugin) for p in stage.plugins)
+    assert any(isinstance(p, PortScannerPlugin) for p in stage.plugins)
 
 @pytest.mark.asyncio
 async def test_stage_execution(stage, mock_session, mock_dns_resolver, mock_env_vars):
@@ -145,7 +144,7 @@ async def test_stage_execution(stage, mock_session, mock_dns_resolver, mock_env_
     
     # Mock plugin execution
     with patch.object(SubdomainEnumPlugin, 'execute', return_value=mock_subdomain_results), \
-         patch.object(PortScanPlugin, 'execute', return_value=mock_port_scan_results):
+         patch.object(PortScannerPlugin, 'execute', return_value=mock_port_scan_results):
         
         result = await stage.execute(TEST_DOMAIN)
         
@@ -170,7 +169,7 @@ async def test_stage_execution_with_plugin_errors(stage, mock_session, mock_dns_
     """Test stage execution when plugins encounter errors."""
     # Mock plugin errors
     with patch.object(SubdomainEnumPlugin, 'execute', side_effect=PluginError("Subdomain enumeration failed")), \
-         patch.object(PortScanPlugin, 'execute', side_effect=PluginError("Port scan failed")):
+         patch.object(PortScannerPlugin, 'execute', side_effect=PluginError("Port scan failed")):
         
         with pytest.raises(StageError) as exc_info:
             await stage.execute(TEST_DOMAIN)
@@ -190,7 +189,7 @@ async def test_stage_execution_with_partial_results(stage, mock_session, mock_dn
     }
     
     with patch.object(SubdomainEnumPlugin, 'execute', return_value=mock_subdomain_results), \
-         patch.object(PortScanPlugin, 'execute', side_effect=PluginError("Port scan failed")):
+         patch.object(PortScannerPlugin, 'execute', side_effect=PluginError("Port scan failed")):
         
         result = await stage.execute(TEST_DOMAIN)
         
@@ -205,7 +204,7 @@ async def test_stage_cleanup(stage):
     """Test stage cleanup."""
     # Mock plugin cleanup
     with patch.object(SubdomainEnumPlugin, 'cleanup') as mock_subdomain_cleanup, \
-         patch.object(PortScanPlugin, 'cleanup') as mock_port_cleanup:
+         patch.object(PortScannerPlugin, 'cleanup') as mock_port_cleanup:
         
         await stage.cleanup()
         
@@ -242,7 +241,7 @@ async def test_stage_configuration(stage):
     
     # Verify plugin configurations
     subdomain_plugin = next(p for p in stage.plugins if isinstance(p, SubdomainEnumPlugin))
-    port_plugin = next(p for p in stage.plugins if isinstance(p, PortScanPlugin))
+    port_plugin = next(p for p in stage.plugins if isinstance(p, PortScannerPlugin))
     
     assert subdomain_plugin.timeout == 300
     assert subdomain_plugin.wordlist_path == 'custom_wordlist.txt'
@@ -272,7 +271,7 @@ async def test_stage_plugin_ordering(stage):
         }
     
     with patch.object(SubdomainEnumPlugin, 'execute', side_effect=mock_subdomain_execute), \
-         patch.object(PortScanPlugin, 'execute', side_effect=mock_port_scan_execute):
+         patch.object(PortScannerPlugin, 'execute', side_effect=mock_port_scan_execute):
         
         await stage.execute(TEST_DOMAIN)
         
@@ -304,7 +303,7 @@ async def test_stage_result_aggregation(stage, mock_session, mock_dns_resolver, 
     }
     
     with patch.object(SubdomainEnumPlugin, 'execute', return_value=mock_subdomain_results), \
-         patch.object(PortScanPlugin, 'execute', return_value=mock_port_scan_results):
+         patch.object(PortScannerPlugin, 'execute', return_value=mock_port_scan_results):
         
         result = await stage.execute(TEST_DOMAIN)
         

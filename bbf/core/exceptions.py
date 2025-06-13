@@ -290,3 +290,13 @@ class PluginDocError(DevToolsError):
 class PluginProjectError(DevToolsError):
     """Raised when plugin project operation fails."""
     pass
+
+# Insert a new exception class for plugin timeout errors
+class PluginTimeoutError(Exception):
+    """Raised when a plugin execution times out."""
+    pass
+
+# Insert a new exception class for plugin resource errors
+class PluginResourceError(Exception):
+    """Raised when a plugin encounters a resource (e.g. file, network, etc.) error."""
+    pass

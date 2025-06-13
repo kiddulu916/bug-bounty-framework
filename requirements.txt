@@ -66,6 +66,7 @@ cookiecutter>=2.0.0 # For project templates
 dnspython>=2.4.2
 aiohttp>=3.9.1
 whois>=0.9.27
+aiodns>=3.1.1  # For async DNS operations
 
 # Testing
 pytest>=7.4.3
@@ -99,3 +100,20 @@ beautifulsoup4>=4.12.0  # For HTML parsing
 cryptography>=41.0.0  # For SSL/TLS operations
 requests>=2.31.0  # For HTTP requests
 python-nmap>=0.7.1  # For port scanning
+
+# Additional Plugin Dependencies
+scapy>=2.4.5  # For packet manipulation and SYN scanning
+asyncio-dgram>=2.1.0  # For UDP scanning
+jsonschema>=4.0.0  # For schema validation
+aiohttp-socks>=0.7.0  # For SOCKS proxy support
+fake-useragent>=1.1.0  # For rotating user agents
+semver>=3.0.0  # For version validation
+prometheus-client>=0.16.0  # For metrics collection
+PyJWT>=2.6.0  # For JWT token handling
+bcrypt>=4.0.1  # For password hashing
+redis>=4.5.0  # For Redis integration
+asyncpg>=0.27.0  # For PostgreSQL integration
+aioredis>=2.0.0  # For async Redis client
+aio-pika>=9.0.0  # For RabbitMQ integration
+tenacity>=8.0.0  # For retry logic
+backoff>=2.2.0  # For exponential backoff

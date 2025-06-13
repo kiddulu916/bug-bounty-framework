@@ -1,480 +1,368 @@
 """
-Core framework for the Bug Bounty Framework.
+Core framework module for the bug bounty framework.
 
-This module contains the main BFFramework class which orchestrates
-the execution of stages and plugins.
+This module provides the main BugBountyFramework class that orchestrates
+the entire framework, including plugin management, execution, and security.
 """
 
 import asyncio
-import inspect
 import logging
-import os
-from typing import Dict, List, Optional, Any, Type, Set, Callable, Coroutine
-from pathlib import Path
-import importlib
-import pkgutil
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Set, Union
 
-from .plugin import BasePlugin, PluginRegistry
-from .state import StateManager
-from .exceptions import (
-    BBFError, PluginError, PluginDependencyError, PluginExecutionError,
-    StageError, StageExecutionError, ConfigurationError
-)
+from bbf.core.base import BaseService, BaseStage
+from bbf.core.execution import ExecutionEngine
+from bbf.core.validation import ValidationManager
+from bbf.core.exceptions import FrameworkError, ValidationError
 
 logger = logging.getLogger(__name__)
 
-
-class BFFramework:
-    """
-    Main framework class for the Bug Bounty Framework.
-    
-    This class is responsible for:
-    - Managing the execution lifecycle of stages
-    - Loading and managing plugins
-    - Handling errors and recovery
-    - Managing state across stages and plugins
-    - Providing utilities for plugins
-    """
+class BugBountyFramework(BaseService):
+    """Main framework class that orchestrates the bug bounty framework."""
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """
-        Initialize the Bug Bounty Framework.
+        super().__init__(config)
         
-        Args:
-            config: Framework configuration dictionary
-        """
-        self.config = config or {}
-        
-        # Set up logging
-        self._setup_logging()
-        
-        # Initialize state manager
-        state_dir = self.config.get('state_dir')
-        self.state = StateManager(state_dir=state_dir)
-        
-        # Plugin registry
-        self.plugin_registry = PluginRegistry()
-        
-        # Stages and plugins
-        self.stages: Dict[str, 'Stage'] = {}
-        self.plugins: Dict[str, BasePlugin] = {}
-        
-        # Thread pool for running blocking operations
-        self.thread_pool = ThreadPoolExecutor(
-            max_workers=self.config.get('max_workers', os.cpu_count() or 4)
-        )
-        
-        # Event loop
-        self.loop = asyncio.get_event_loop()
+        # Core components
+        self._execution_engine: Optional[ExecutionEngine] = None
+        self._validation_manager: Optional[ValidationManager] = None
         
         # Framework state
-        self.initialized = False
-        self.running = False
-        self.current_stage: Optional[str] = None
-    
-    def _setup_logging(self) -> None:
-        """Set up logging configuration."""
-        log_level = self.config.get('log_level', 'INFO').upper()
-        log_file = self.config.get('log_file')
+        self._stages: Dict[str, BaseStage] = {}
+        self._targets: Dict[str, Dict[str, Any]] = {}
+        self._findings: Dict[str, List[Dict[str, Any]]] = {}
+        self._execution_history: List[Dict[str, Any]] = []
         
-        # Configure root logger
-        logging.basicConfig(
-            level=getattr(logging, log_level, logging.INFO),
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            handlers=[]
-        )
-        
-        # Add console handler
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(getattr(logging, log_level, logging.INFO))
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        console_handler.setFormatter(formatter)
-        logging.getLogger('').addHandler(console_handler)
-        
-        # Add file handler if log file is specified
-        if log_file:
-            file_handler = logging.FileHandler(log_file)
-            file_handler.setLevel(getattr(logging, log_level, logging.INFO))
-            file_handler.setFormatter(formatter)
-            logging.getLogger('').addHandler(file_handler)
+        # Framework settings
+        self.max_concurrent_targets = self.config.get('max_concurrent_targets', 5)
+        self.max_retries = self.config.get('max_retries', 3)
+        self.execution_timeout = self.config.get('execution_timeout', 3600)  # 1 hour
+        self.strict_mode = self.config.get('strict_mode', True)
     
     async def initialize(self) -> None:
-        """
-        Initialize the framework.
-        
-        This method should be called before running any stages.
-        """
-        if self.initialized:
-            logger.warning("Framework already initialized")
+        """Initialize the framework and its components."""
+        if self._initialized:
             return
         
-        logger.info("Initializing Bug Bounty Framework")
+        logger.info("Initializing bug bounty framework")
         
         try:
-            # Load plugins
-            await self._load_plugins()
+            # Initialize execution engine
+            self._execution_engine = ExecutionEngine({
+                'max_workers': self.max_concurrent_targets,
+                'max_concurrent_tasks': self.max_concurrent_targets,
+                'execution_timeout': self.execution_timeout,
+                'retry_count': self.max_retries
+            })
+            await self._execution_engine.initialize()
             
-            # Initialize stages
-            self._initialize_stages()
+            # Initialize validation manager
+            self._validation_manager = ValidationManager({
+                'strict_mode': self.strict_mode
+            })
+            await self._validation_manager.initialize()
             
-            self.initialized = True
+            # Register core schemas
+            await self._register_core_schemas()
+            
+            self._initialized = True
             logger.info("Framework initialized successfully")
             
         except Exception as e:
-            logger.error(f"Failed to initialize framework: {e}", exc_info=True)
-            raise BBFError(f"Framework initialization failed: {e}") from e
+            logger.error(f"Failed to initialize framework: {str(e)}")
+            await self.cleanup()
+            raise FrameworkError(f"Initialization failed: {str(e)}")
     
-    async def _load_plugins(self) -> None:
-        """Load plugins from configured directories."""
-        plugin_dirs = self.config.get('plugin_dirs', [])
-        if not plugin_dirs:
-            logger.warning("No plugin directories configured")
+    async def cleanup(self) -> None:
+        """Clean up framework resources."""
+        if not self._initialized:
             return
         
-        logger.info(f"Loading plugins from directories: {plugin_dirs}")
-        
-        for plugin_dir in plugin_dirs:
-            if not os.path.isdir(plugin_dir):
-                logger.warning(f"Plugin directory not found: {plugin_dir}")
-                continue
-                
-            # Import all Python modules in the plugin directory
-            for finder, name, _ in pkgutil.iter_modules([plugin_dir]):
-                try:
-                    module = importlib.import_module(f"{plugin_dir}.{name}")
-                    logger.debug(f"Imported plugin module: {module.__name__}")
-                except Exception as e:
-                    logger.error(f"Failed to import plugin module {name}: {e}", exc_info=True)
-    
-    def _initialize_stages(self) -> None:
-        """Initialize the framework stages."""
-        from ..stages import (
-            ReconStage, ScanStage, TestStage, ReportStage
-        )
-        
-        # Create default stages if none are defined
-        if not self.stages:
-            self.stages = {
-                'recon': ReconStage(self),
-                'scan': ScanStage(self),
-                'test': TestStage(self),
-                'report': ReportStage(self),
-            }
-        
-        logger.info(f"Initialized stages: {list(self.stages.keys())}")
-    
-    async def run_stage(self, stage_name: str, **kwargs) -> Dict[str, Any]:
-        """
-        Run a specific stage.
-        
-        Args:
-            stage_name: Name of the stage to run
-            **kwargs: Additional arguments to pass to the stage
-            
-        Returns:
-            Dictionary containing the results of the stage
-            
-        Raises:
-            StageExecutionError: If the stage fails to execute
-        """
-        if not self.initialized:
-            await self.initialize()
-        
-        if stage_name not in self.stages:
-            raise StageExecutionError(f"Unknown stage: {stage_name}")
-        
-        self.current_stage = stage_name
-        stage = self.stages[stage_name]
-        
-        logger.info(f"Starting stage: {stage_name}")
+        logger.info("Cleaning up framework")
         
         try:
-            # Run the stage
-            results = await stage.run(**kwargs)
+            # Clean up stages
+            for stage in self._stages.values():
+                await stage.cleanup()
+            self._stages.clear()
             
-            # Save state after successful stage execution
-            self.state.save_state()
+            # Clean up execution engine
+            if self._execution_engine:
+                await self._execution_engine.cleanup()
+                self._execution_engine = None
             
-            logger.info(f"Completed stage: {stage_name}")
-            return results
+            # Clean up validation manager
+            if self._validation_manager:
+                await self._validation_manager.cleanup()
+                self._validation_manager = None
+            
+            # Clear state
+            self._targets.clear()
+            self._findings.clear()
+            self._execution_history.clear()
+            
+            self._initialized = False
+            logger.info("Framework cleaned up successfully")
             
         except Exception as e:
-            logger.error(f"Stage {stage_name} failed: {e}", exc_info=True)
-            raise StageExecutionError(f"Stage {stage_name} failed: {e}") from e
-            
-        finally:
-            self.current_stage = None
+            logger.error(f"Error during cleanup: {str(e)}")
+            raise FrameworkError(f"Cleanup failed: {str(e)}")
     
-    async def run_all_stages(self, **kwargs) -> Dict[str, Any]:
-        """
-        Run all stages in sequence.
+    async def register_stage(self, stage: BaseStage) -> None:
+        """Register a stage in the framework."""
+        if not self._initialized:
+            raise FrameworkError("Framework not initialized")
         
-        Args:
-            **kwargs: Additional arguments to pass to each stage
-            
-        Returns:
-            Dictionary containing the results from all stages
-        """
-        if not self.initialized:
-            await self.initialize()
-        
-        results = {}
-        
-        for stage_name in self.stages:
-            try:
-                stage_results = await self.run_stage(stage_name, **kwargs)
-                results[stage_name] = stage_results
-                
-                # Pass results to next stage if needed
-                kwargs['previous_results'] = results
-                
-            except Exception as e:
-                logger.error(f"Pipeline failed at stage {stage_name}: {e}", exc_info=True)
-                raise StageExecutionError(f"Pipeline failed at stage {stage_name}") from e
-        
-        return results
-    
-    def get_plugin(self, plugin_name: str) -> BasePlugin:
-        """
-        Get a plugin instance by name.
-        
-        Args:
-            plugin_name: Name of the plugin to retrieve
-            
-        Returns:
-            The plugin instance
-            
-        Raises:
-            PluginError: If the plugin is not found
-        """
-        if plugin_name not in self.plugins:
-            try:
-                plugin_class = self.plugin_registry.get_plugin_class(plugin_name)
-                self.plugins[plugin_name] = plugin_class()
-            except Exception as e:
-                raise PluginError(f"Failed to initialize plugin {plugin_name}: {e}") from e
-                
-        return self.plugins[plugin_name]
-    
-    async def run_in_thread(self, func: Callable, *args, **kwargs) -> Any:
-        """
-        Run a blocking function in a thread pool.
-        
-        Args:
-            func: The function to run
-            *args: Positional arguments to pass to the function
-            **kwargs: Keyword arguments to pass to the function
-            
-        Returns:
-            The result of the function
-        """
-        return await self.loop.run_in_executor(
-            self.thread_pool,
-            lambda: func(*args, **kwargs)
-        )
-    
-    async def run_plugins_parallel(
-        self,
-        plugin_names: List[str],
-        *args,
-        **kwargs
-    ) -> Dict[str, Any]:
-        """
-        Run multiple plugins in parallel.
-        
-        Args:
-            plugin_names: List of plugin names to run
-            *args: Positional arguments to pass to each plugin
-            **kwargs: Keyword arguments to pass to each plugin
-            
-        Returns:
-            Dictionary mapping plugin names to their results
-        """
-        tasks = []
-        
-        for plugin_name in plugin_names:
-            plugin = self.get_plugin(plugin_name)
-            task = asyncio.create_task(self._run_plugin_safely(plugin, *args, **kwargs))
-            tasks.append((plugin_name, task))
-        
-        # Wait for all tasks to complete
-        results = {}
-        for plugin_name, task in tasks:
-            try:
-                results[plugin_name] = await task
-            except Exception as e:
-                logger.error(f"Plugin {plugin_name} failed: {e}", exc_info=True)
-                results[plugin_name] = {"error": str(e), "success": False}
-        
-        return results
-    
-    async def _run_plugin_safely(
-        self,
-        plugin: BasePlugin,
-        *args,
-        **kwargs
-    ) -> Dict[str, Any]:
-        """
-        Run a plugin with error handling and state management.
-        
-        Args:
-            plugin: The plugin instance to run
-            *args: Positional arguments to pass to the plugin
-            **kwargs: Keyword arguments to pass to the plugin
-            
-        Returns:
-            Dictionary containing the plugin's results
-        """
-        plugin_name = plugin.name
-        logger.info(f"Starting plugin: {plugin_name}")
+        if stage.name in self._stages:
+            raise FrameworkError(f"Stage already registered: {stage.name}")
         
         try:
-            # Load plugin state
-            plugin_state = self.state.get_plugin_state(plugin_name)
-            plugin.state = plugin_state
-            
-            # Run plugin setup
-            await plugin.setup()
-            
-            # Run the plugin
-            results = await plugin.run(*args, **kwargs)
-            
-            # Run plugin cleanup
-            await plugin.cleanup()
-            
-            # Save plugin state
-            self.state.set_plugin_state(plugin_name, plugin.state)
-            
-            logger.info(f"Completed plugin: {plugin_name}")
-            return {
-                "success": True,
-                "results": results,
-                "state": plugin.state
-            }
+            await stage.initialize()
+            self._stages[stage.name] = stage
+            logger.info(f"Registered stage: {stage.name}")
             
         except Exception as e:
-            logger.error(f"Plugin {plugin_name} failed: {e}", exc_info=True)
+            raise FrameworkError(f"Failed to register stage: {str(e)}")
+    
+    async def add_target(self, target: Dict[str, Any]) -> str:
+        """Add a target to the framework."""
+        if not self._initialized:
+            raise FrameworkError("Framework not initialized")
+        
+        try:
+            # Validate target data
+            await self._validation_manager.validate_schema('target', target)
             
-            # Save error state
-            self.state.set_plugin_state(plugin_name, {
-                **plugin.state,
-                "error": str(e),
-                "success": False,
-                "timestamp": datetime.utcnow().isoformat()
-            })
+            # Generate target ID
+            target_id = f"target_{len(self._targets) + 1}"
             
-            raise PluginExecutionError(f"Plugin {plugin_name} failed: {e}") from e
-    
-    async def close(self) -> None:
-        """
-        Clean up resources used by the framework.
-        """
-        logger.info("Shutting down Bug Bounty Framework")
-        
-        # Close all plugins
-        for plugin in self.plugins.values():
-            if hasattr(plugin, 'close') and callable(plugin.close):
-                try:
-                    if inspect.iscoroutinefunction(plugin.close):
-                        await plugin.close()
-                    else:
-                        await self.run_in_thread(plugin.close)
-                except Exception as e:
-                    logger.error(f"Error closing plugin {plugin.name}: {e}", exc_info=True)
-        
-        # Shutdown thread pool
-        self.thread_pool.shutdown(wait=True)
-        
-        # Save final state
-        self.state.save_state()
-        
-        self.running = False
-        logger.info("Bug Bounty Framework shutdown complete")
-    
-    def __del__(self) -> None:
-        """Ensure resources are cleaned up when the framework is garbage collected."""
-        if hasattr(self, 'running') and self.running:
-            logger.warning("Framework was not properly closed before destruction")
-            if self.loop.is_running():
-                self.loop.create_task(self.close())
-            else:
-                self.loop.run_until_complete(self.close())
-    
-    def __enter__(self):
-        """Context manager entry."""
-        if not self.loop.is_running():
-            self.loop.run_until_complete(self.initialize())
-        else:
-            asyncio.create_task(self.initialize())
-        self.running = True
-        return self
-    
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit."""
-        if self.loop.is_running():
-            self.loop.create_task(self.close())
-        else:
-            self.loop.run_until_complete(self.close())
-
-
-class Stage:
-    """
-    Base class for all stages in the Bug Bounty Framework.
-    
-    Stages are the main building blocks of the framework's execution flow.
-    Each stage is responsible for a specific phase of the testing process.
-    """
-    
-    def __init__(self, framework: BFFramework):
-        """
-        Initialize the stage.
-        
-        Args:
-            framework: Reference to the parent framework instance
-        """
-        self.framework = framework
-        self.name = self.__class__.__name__.replace('Stage', '').lower()
-        self.log = logging.getLogger(f"bbf.stage.{self.name}")
-    
-    async def run(self, **kwargs) -> Dict[str, Any]:
-        """
-        Execute the stage.
-        
-        This method should be overridden by subclasses to implement
-        the specific functionality of the stage.
-        
-        Args:
-            **kwargs: Additional arguments specific to the stage
+            # Store target
+            self._targets[target_id] = {
+                **target,
+                'status': 'pending',
+                'created_at': datetime.utcnow().isoformat(),
+                'updated_at': datetime.utcnow().isoformat()
+            }
             
-        Returns:
-            Dictionary containing the results of the stage
-        """
-        raise NotImplementedError("Stage subclasses must implement the run() method")
-    
-    async def get_plugins(self) -> List[str]:
-        """
-        Get the list of plugins to run in this stage.
-        
-        Returns:
-            List of plugin names to run
-        """
-        return []
-    
-    async def run_plugins(self, **kwargs) -> Dict[str, Any]:
-        """
-        Run all plugins configured for this stage.
-        
-        Args:
-            **kwargs: Additional arguments to pass to the plugins
+            logger.info(f"Added target: {target_id}")
+            return target_id
             
-        Returns:
-            Dictionary mapping plugin names to their results
-        """
-        plugin_names = await self.get_plugins()
-        if not plugin_names:
-            self.log.warning(f"No plugins configured for stage {self.name}")
-            return {}
+        except ValidationError as e:
+            raise FrameworkError(f"Invalid target data: {str(e)}")
+        except Exception as e:
+            raise FrameworkError(f"Failed to add target: {str(e)}")
+    
+    async def execute_stage(
+        self,
+        stage_name: str,
+        target_ids: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """Execute a stage for specified targets."""
+        if not self._initialized:
+            raise FrameworkError("Framework not initialized")
+        
+        if stage_name not in self._stages:
+            raise FrameworkError(f"Stage not found: {stage_name}")
+        
+        if not target_ids:
+            target_ids = list(self._targets.keys())
+        
+        # Validate targets
+        invalid_targets = [tid for tid in target_ids if tid not in self._targets]
+        if invalid_targets:
+            raise FrameworkError(f"Invalid targets: {invalid_targets}")
+        
+        stage = self._stages[stage_name]
+        execution_id = f"exec_{len(self._execution_history) + 1}"
+        
+        try:
+            # Update target statuses
+            for target_id in target_ids:
+                self._targets[target_id]['status'] = 'running'
+                self._targets[target_id]['updated_at'] = datetime.utcnow().isoformat()
             
-        self.log.info(f"Running {len(plugin_names)} plugins in stage {self.name}")
-        return await self.framework.run_plugins_parallel(plugin_names, **kwargs)
+            # Execute stage
+            start_time = datetime.utcnow()
+            results = await self._execution_engine.execute_stage(
+                stage,
+                [self._targets[tid] for tid in target_ids]
+            )
+            end_time = datetime.utcnow()
+            
+            # Process results
+            for target_id, result in zip(target_ids, results):
+                if result.get('status') == 'success':
+                    # Update findings
+                    if 'findings' in result:
+                        if target_id not in self._findings:
+                            self._findings[target_id] = []
+                        self._findings[target_id].extend(result['findings'])
+                    
+                    # Update target status
+                    self._targets[target_id]['status'] = 'completed'
+                else:
+                    self._targets[target_id]['status'] = 'failed'
+                
+                self._targets[target_id]['updated_at'] = datetime.utcnow().isoformat()
+            
+            # Record execution
+            execution_record = {
+                'id': execution_id,
+                'stage': stage_name,
+                'targets': target_ids,
+                'start_time': start_time.isoformat(),
+                'end_time': end_time.isoformat(),
+                'duration': (end_time - start_time).total_seconds(),
+                'status': 'success' if all(r.get('status') == 'success' for r in results) else 'failed',
+                'results': results
+            }
+            self._execution_history.append(execution_record)
+            
+            return execution_record
+            
+        except Exception as e:
+            # Update target statuses on failure
+            for target_id in target_ids:
+                self._targets[target_id]['status'] = 'failed'
+                self._targets[target_id]['updated_at'] = datetime.utcnow().isoformat()
+            
+            logger.error(f"Stage execution failed: {str(e)}")
+            raise FrameworkError(f"Stage execution failed: {str(e)}")
+    
+    async def get_target_status(self, target_id: str) -> Dict[str, Any]:
+        """Get the current status of a target."""
+        if not self._initialized:
+            raise FrameworkError("Framework not initialized")
+        
+        if target_id not in self._targets:
+            raise FrameworkError(f"Target not found: {target_id}")
+        
+        return {
+            'id': target_id,
+            'status': self._targets[target_id]['status'],
+            'findings': self._findings.get(target_id, []),
+            'created_at': self._targets[target_id]['created_at'],
+            'updated_at': self._targets[target_id]['updated_at']
+        }
+    
+    async def get_execution_history(
+        self,
+        stage_name: Optional[str] = None,
+        target_id: Optional[str] = None,
+        limit: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """Get execution history with optional filtering."""
+        if not self._initialized:
+            raise FrameworkError("Framework not initialized")
+        
+        # Filter executions
+        filtered_history = self._execution_history
+        
+        if stage_name:
+            filtered_history = [
+                e for e in filtered_history
+                if e['stage'] == stage_name
+            ]
+        
+        if target_id:
+            filtered_history = [
+                e for e in filtered_history
+                if target_id in e['targets']
+            ]
+        
+        # Apply limit
+        if limit is not None:
+            filtered_history = filtered_history[-limit:]
+        
+        return filtered_history
+    
+    async def _register_core_schemas(self) -> None:
+        """Register core validation schemas."""
+        # Target schema
+        target_schema = {
+            'type': 'object',
+            'required': ['url', 'scope'],
+            'properties': {
+                'url': {
+                    'type': 'string',
+                    'format': 'uri'
+                },
+                'scope': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'string'
+                    }
+                },
+                'options': {
+                    'type': 'object',
+                    'additionalProperties': True
+                }
+            }
+        }
+        await self._validation_manager.register_schema('target', target_schema)
+        
+        # Finding schema
+        finding_schema = {
+            'type': 'object',
+            'required': ['type', 'severity', 'description'],
+            'properties': {
+                'type': {
+                    'type': 'string'
+                },
+                'severity': {
+                    'type': 'string',
+                    'enum': ['low', 'medium', 'high', 'critical']
+                },
+                'description': {
+                    'type': 'string'
+                },
+                'evidence': {
+                    'type': 'object',
+                    'additionalProperties': True
+                },
+                'remediation': {
+                    'type': 'string'
+                }
+            }
+        }
+        await self._validation_manager.register_schema('finding', finding_schema)
+        
+        # Plugin config schema
+        plugin_config_schema = {
+            'type': 'object',
+            'required': ['name', 'version'],
+            'properties': {
+                'name': {
+                    'type': 'string'
+                },
+                'version': {
+                    'type': 'string'
+                },
+                'config': {
+                    'type': 'object',
+                    'additionalProperties': True
+                },
+                'dependencies': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'string'
+                    }
+                }
+            }
+        }
+        await self._validation_manager.register_schema('plugin_config', plugin_config_schema)
+    
+    @property
+    def registered_stages(self) -> Set[str]:
+        """Get the set of registered stage names."""
+        return set(self._stages.keys())
+    
+    @property
+    def target_count(self) -> int:
+        """Get the number of registered targets."""
+        return len(self._targets)
+    
+    @property
+    def execution_count(self) -> int:
+        """Get the number of completed executions."""
+        return len(self._execution_history)

@@ -25,7 +25,7 @@ with open('requirements.txt', 'r', encoding='utf-8') as f:
     requirements = [line.strip() for line in f if line.strip() and not line.startswith('#')]
 
 setup(
-    name='bugbounty-framework',
+    name='bug-bounty-framework',
     version=version,
     description='A modular, extensible framework for bug bounty and security testing',
     long_description=long_description,
@@ -66,8 +66,8 @@ setup(
         ],
         'bbf.plugins': [
             # Example plugins
-            'subdomain_enumeration = bbf.plugins.recon.passive.subdomain_enumeration:SubdomainEnumeration',
-            'port_scanning = bbf.plugins.recon.active.port_scanning:PortScannerPlugin',
+            'subdomain_enumeration = bbf.plugins.recon.subdomain_enum:SubdomainEnumPlugin',
+            'port_scanning = bbf.plugins.recon.port_scan:PortScannerPlugin',
         ],
     },
     classifiers=[
@@ -87,7 +87,7 @@ setup(
         'Topic :: Software Development :: Testing',
         'Topic :: System :: Systems Administration',
     ],
-    keywords='bugbounty security testing framework',
+    keywords='bug bounty security testing framework',
     project_urls={
         'Bug Reports': 'https://github.com/kiddulu916/bug-bounty-framework/issues',
         'Source': 'https://github.com/kiddulu916/bug-bounty-framework',

@@ -8,7 +8,7 @@ This module provides service classes that handle:
 - Session management
 """
 
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import List, Dict, Any, Optional, Union
 from sqlalchemy.orm import Session
 
@@ -34,7 +34,7 @@ class ScanService:
         return self.session_repo.create(
             session,
             target=target,
-            start_time=datetime.utcnow(),
+            start_time=datetime.now(UTC),
             status='running',
             configuration=config
         )
@@ -44,7 +44,7 @@ class ScanService:
         """Update scan session status."""
         updates = {'status': status}
         if status in ['completed', 'failed']:
-            updates['end_time'] = datetime.utcnow()
+            updates['end_time'] = datetime.now(UTC)
         return self.session_repo.update(session, session_id, **updates)
         
     @db_manager.execute_in_transaction

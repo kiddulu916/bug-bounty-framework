@@ -388,4 +388,237 @@ class ExecutionManager:
     def clear_cache(cls) -> None:
         """Clear all execution caches."""
         for context in cls._contexts.values():
-            context._cache.clear() 
+            context._cache.clear()
+
+class ExecutionEngine:
+    """Engine for managing plugin and stage execution."""
+    
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        self.config = config or {}
+        self._initialized = False
+        self._executor = ThreadPoolExecutor(
+            max_workers=self.config.get('max_workers', 4)
+        )
+        self._running_tasks: Set[asyncio.Task] = set()
+        self._execution_history: List[Dict[str, Any]] = []
+        
+        # Execution settings
+        self.max_concurrent_tasks = self.config.get('max_concurrent_tasks', 10)
+        self.execution_timeout = self.config.get('execution_timeout', 300)  # 5 minutes
+        self.retry_count = self.config.get('retry_count', 3)
+        self.retry_delay = self.config.get('retry_delay', 5)  # 5 seconds
+    
+    async def initialize(self) -> None:
+        """Initialize the execution engine."""
+        if self._initialized:
+            return
+        
+        logger.info("Initializing execution engine")
+        self._initialized = True
+    
+    async def cleanup(self) -> None:
+        """Clean up resources used by the execution engine."""
+        if not self._initialized:
+            return
+        
+        logger.info("Cleaning up execution engine")
+        
+        # Cancel all running tasks
+        for task in self._running_tasks:
+            if not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+        
+        # Shutdown thread pool
+        self._executor.shutdown(wait=True)
+        self._initialized = False
+    
+    async def execute_plugin(
+        self,
+        plugin: BasePlugin,
+        target: Any,
+        **kwargs
+    ) -> Any:
+        """Execute a plugin against a target."""
+        if not self._initialized:
+            raise ExecutionError("Execution engine not initialized")
+        
+        if not plugin.is_initialized:
+            await plugin.initialize()
+        
+        start_time = datetime.now()
+        execution_id = len(self._execution_history)
+        
+        try:
+            # Execute plugin with timeout
+            result = await asyncio.wait_for(
+                plugin.execute(target, **kwargs),
+                timeout=self.execution_timeout
+            )
+            
+            execution_time = (datetime.now() - start_time).total_seconds()
+            plugin._execution_count += 1
+            plugin._last_execution = datetime.now()
+            plugin._execution_times.append(execution_time)
+            
+            # Record execution
+            self._execution_history.append({
+                'id': execution_id,
+                'type': 'plugin',
+                'plugin': plugin.__class__.__name__,
+                'target': str(target),
+                'start_time': start_time,
+                'end_time': datetime.now(),
+                'duration': execution_time,
+                'status': 'success',
+                'result': result
+            })
+            
+            return result
+            
+        except asyncio.TimeoutError:
+            execution_time = (datetime.now() - start_time).total_seconds()
+            self._execution_history.append({
+                'id': execution_id,
+                'type': 'plugin',
+                'plugin': plugin.__class__.__name__,
+                'target': str(target),
+                'start_time': start_time,
+                'end_time': datetime.now(),
+                'duration': execution_time,
+                'status': 'timeout',
+                'error': f"Execution timed out after {execution_time} seconds"
+            })
+            raise ExecutionError(f"Plugin execution timed out after {execution_time} seconds")
+            
+        except Exception as e:
+            execution_time = (datetime.now() - start_time).total_seconds()
+            self._execution_history.append({
+                'id': execution_id,
+                'type': 'plugin',
+                'plugin': plugin.__class__.__name__,
+                'target': str(target),
+                'start_time': start_time,
+                'end_time': datetime.now(),
+                'duration': execution_time,
+                'status': 'error',
+                'error': str(e)
+            })
+            raise ExecutionError(f"Plugin execution failed: {str(e)}")
+    
+    async def execute_stage(
+        self,
+        stage: BaseStage,
+        target: Any,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Execute a stage against a target."""
+        if not self._initialized:
+            raise ExecutionError("Execution engine not initialized")
+        
+        if not stage.is_initialized:
+            await stage.initialize()
+        
+        start_time = datetime.now()
+        execution_id = len(self._execution_history)
+        results = {}
+        
+        try:
+            # Execute plugins concurrently with limits
+            tasks = []
+            for plugin in stage.plugins:
+                if len(tasks) >= self.max_concurrent_tasks:
+                    # Wait for some tasks to complete
+                    done, tasks = await asyncio.wait(
+                        tasks,
+                        return_when=asyncio.FIRST_COMPLETED
+                    )
+                    for task in done:
+                        plugin_name, result = await task
+                        results[plugin_name] = result
+                
+                # Create new task
+                task = asyncio.create_task(
+                    self._execute_plugin_with_retry(plugin, target, **kwargs)
+                )
+                self._running_tasks.add(task)
+                task.add_done_callback(self._running_tasks.discard)
+                tasks.append(task)
+            
+            # Wait for remaining tasks
+            if tasks:
+                done, _ = await asyncio.wait(tasks)
+                for task in done:
+                    plugin_name, result = await task
+                    results[plugin_name] = result
+            
+            execution_time = (datetime.now() - start_time).total_seconds()
+            stage._execution_count += 1
+            stage._last_execution = datetime.now()
+            stage._execution_times.append(execution_time)
+            
+            # Record execution
+            self._execution_history.append({
+                'id': execution_id,
+                'type': 'stage',
+                'stage': stage.__class__.__name__,
+                'target': str(target),
+                'start_time': start_time,
+                'end_time': datetime.now(),
+                'duration': execution_time,
+                'status': 'success',
+                'results': results
+            })
+            
+            return results
+            
+        except Exception as e:
+            execution_time = (datetime.now() - start_time).total_seconds()
+            self._execution_history.append({
+                'id': execution_id,
+                'type': 'stage',
+                'stage': stage.__class__.__name__,
+                'target': str(target),
+                'start_time': start_time,
+                'end_time': datetime.now(),
+                'duration': execution_time,
+                'status': 'error',
+                'error': str(e)
+            })
+            raise ExecutionError(f"Stage execution failed: {str(e)}")
+    
+    async def _execute_plugin_with_retry(
+        self,
+        plugin: BasePlugin,
+        target: Any,
+        **kwargs
+    ) -> tuple[str, Any]:
+        """Execute a plugin with retry logic."""
+        last_error = None
+        
+        for attempt in range(self.retry_count):
+            try:
+                result = await self.execute_plugin(plugin, target, **kwargs)
+                return plugin.__class__.__name__, result
+                
+            except ExecutionError as e:
+                last_error = e
+                if attempt < self.retry_count - 1:
+                    await asyncio.sleep(self.retry_delay)
+                    continue
+                raise
+        
+        raise ExecutionError(f"Plugin execution failed after {self.retry_count} attempts: {str(last_error)}")
+    
+    @property
+    def execution_history(self) -> List[Dict[str, Any]]:
+        """Get the execution history."""
+        return self._execution_history.copy()
+    
+    @property
+    def is_initialized(self) -> bool:
+        """Check if the execution engine is initialized."""
+        return self._initialized 

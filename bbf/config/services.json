@@ -1,0 +1,427 @@
+{
+  "80": {
+    "name": "http",
+    "description": "HTTP",
+    "category": "web"
+  },
+  "443": {
+    "name": "https",
+    "description": "HTTPS",
+    "category": "web"
+  },
+  "8080": {
+    "name": "http-alt",
+    "description": "Alternative HTTP",
+    "category": "web"
+  },
+  "8443": {
+    "name": "plesk",
+    "description": "Plesk",
+    "category": "security"
+  },
+  "8000": {
+    "name": "http-alt",
+    "description": "Alternative HTTP",
+    "category": "web"
+  },
+  "8008": {
+    "name": "http-alt",
+    "description": "Alternative HTTP",
+    "category": "web"
+  },
+  "8888": {
+    "name": "rdp-alt",
+    "description": "Alternative RDP",
+    "category": "remote"
+  },
+  "3000": {
+    "name": "grafana",
+    "description": "Grafana",
+    "category": "management"
+  },
+  "5000": {
+    "name": "docker-registry",
+    "description": "Docker Registry",
+    "category": "cloud"
+  },
+  "1433": {
+    "name": "mssql",
+    "description": "Microsoft SQL Server",
+    "category": "database"
+  },
+  "1434": {
+    "name": "mssql-udp",
+    "description": "Microsoft SQL Server UDP",
+    "category": "database"
+  },
+  "3306": {
+    "name": "mysql",
+    "description": "MySQL",
+    "category": "database"
+  },
+  "5432": {
+    "name": "postgresql",
+    "description": "PostgreSQL",
+    "category": "database"
+  },
+  "27017": {
+    "name": "mongodb",
+    "description": "MongoDB",
+    "category": "database"
+  },
+  "6379": {
+    "name": "redis",
+    "description": "Redis",
+    "category": "database"
+  },
+  "9200": {
+    "name": "elasticsearch",
+    "description": "Elasticsearch HTTP",
+    "category": "database"
+  },
+  "9300": {
+    "name": "elasticsearch",
+    "description": "Elasticsearch Transport",
+    "category": "database"
+  },
+  "11211": {
+    "name": "memcached",
+    "description": "Memcached",
+    "category": "database"
+  },
+  "5984": {
+    "name": "couchdb-http",
+    "description": "CouchDB HTTP",
+    "category": "database"
+  },
+  "8086": {
+    "name": "influxdb",
+    "description": "InfluxDB",
+    "category": "database"
+  },
+  "9042": {
+    "name": "cassandra",
+    "description": "Cassandra",
+    "category": "database"
+  },
+  "2181": {
+    "name": "zookeeper",
+    "description": "ZooKeeper",
+    "category": "database"
+  },
+  "9092": {
+    "name": "kafka",
+    "description": "Kafka",
+    "category": "database"
+  },
+  "25": {
+    "name": "smtp",
+    "description": "SMTP",
+    "category": "mail"
+  },
+  "110": {
+    "name": "pop3",
+    "description": "POP3",
+    "category": "mail"
+  },
+  "143": {
+    "name": "imap",
+    "description": "IMAP",
+    "category": "mail"
+  },
+  "465": {
+    "name": "smtps",
+    "description": "SMTPS",
+    "category": "mail"
+  },
+  "587": {
+    "name": "submission",
+    "description": "SMTP Submission",
+    "category": "mail"
+  },
+  "993": {
+    "name": "imaps",
+    "description": "IMAPS",
+    "category": "mail"
+  },
+  "995": {
+    "name": "pop3s",
+    "description": "POP3S",
+    "category": "mail"
+  },
+  "2525": {
+    "name": "smtp-alt",
+    "description": "Alternative SMTP",
+    "category": "mail"
+  },
+  "4190": {
+    "name": "sieve",
+    "description": "Sieve",
+    "category": "mail"
+  },
+  "53": {
+    "name": "dns",
+    "description": "DNS",
+    "category": "dns"
+  },
+  "853": {
+    "name": "dns-over-tls",
+    "description": "DNS over TLS",
+    "category": "dns"
+  },
+  "5353": {
+    "name": "mdns",
+    "description": "Multicast DNS",
+    "category": "dns"
+  },
+  "5355": {
+    "name": "llmnr",
+    "description": "Link-Local Multicast Name Resolution",
+    "category": "dns"
+  },
+  "20": {
+    "name": "ftp-data",
+    "description": "FTP Data",
+    "category": "ftp"
+  },
+  "21": {
+    "name": "ftp",
+    "description": "FTP Control",
+    "category": "ftp"
+  },
+  "22": {
+    "name": "ssh",
+    "description": "SSH/SFTP",
+    "category": "ftp"
+  },
+  "69": {
+    "name": "tftp",
+    "description": "TFTP",
+    "category": "ftp"
+  },
+  "115": {
+    "name": "sftp",
+    "description": "SFTP",
+    "category": "ftp"
+  },
+  "989": {
+    "name": "ftps-data",
+    "description": "FTPS Data",
+    "category": "ftp"
+  },
+  "990": {
+    "name": "ftps",
+    "description": "FTPS Control",
+    "category": "ftp"
+  },
+  "2049": {
+    "name": "nfs",
+    "description": "Network File System",
+    "category": "ftp"
+  },
+  "23": {
+    "name": "telnet",
+    "description": "Telnet",
+    "category": "remote"
+  },
+  "3389": {
+    "name": "rdp",
+    "description": "Remote Desktop Protocol",
+    "category": "remote"
+  },
+  "5900": {
+    "name": "vnc",
+    "description": "VNC",
+    "category": "remote"
+  },
+  "5901": {
+    "name": "vnc-1",
+    "description": "VNC Display 1",
+    "category": "remote"
+  },
+  "5631": {
+    "name": "pcanywhere",
+    "description": "pcAnywhere",
+    "category": "remote"
+  },
+  "5800": {
+    "name": "vnc-http",
+    "description": "VNC over HTTP",
+    "category": "remote"
+  },
+  "5801": {
+    "name": "vnc-http-1",
+    "description": "VNC over HTTP Display 1",
+    "category": "remote"
+  },
+  "1194": {
+    "name": "openvpn",
+    "description": "OpenVPN",
+    "category": "vpn"
+  },
+  "1723": {
+    "name": "pptp",
+    "description": "PPTP",
+    "category": "vpn"
+  },
+  "500": {
+    "name": "isakmp",
+    "description": "ISAKMP",
+    "category": "vpn"
+  },
+  "4500": {
+    "name": "ipsec-nat-t",
+    "description": "IPsec NAT-Traversal",
+    "category": "vpn"
+  },
+  "1701": {
+    "name": "l2tp",
+    "description": "L2TP",
+    "category": "vpn"
+  },
+  "1812": {
+    "name": "radius",
+    "description": "RADIUS Authentication",
+    "category": "vpn"
+  },
+  "1813": {
+    "name": "radius-acct",
+    "description": "RADIUS Accounting",
+    "category": "vpn"
+  },
+  "161": {
+    "name": "snmp",
+    "description": "SNMP",
+    "category": "management"
+  },
+  "162": {
+    "name": "snmptrap",
+    "description": "SNMP Trap",
+    "category": "management"
+  },
+  "514": {
+    "name": "syslog",
+    "description": "Syslog",
+    "category": "management"
+  },
+  "123": {
+    "name": "ntp",
+    "description": "Network Time Protocol",
+    "category": "management"
+  },
+  "199": {
+    "name": "snmptrap",
+    "description": "SNMP Trap",
+    "category": "management"
+  },
+  "5666": {
+    "name": "nagios",
+    "description": "Nagios",
+    "category": "management"
+  },
+  "9090": {
+    "name": "prometheus",
+    "description": "Prometheus",
+    "category": "management"
+  },
+  "9100": {
+    "name": "node-exporter",
+    "description": "Node Exporter",
+    "category": "management"
+  },
+  "2375": {
+    "name": "docker",
+    "description": "Docker",
+    "category": "cloud"
+  },
+  "2376": {
+    "name": "docker-tls",
+    "description": "Docker TLS",
+    "category": "cloud"
+  },
+  "2377": {
+    "name": "docker-swarm",
+    "description": "Docker Swarm",
+    "category": "cloud"
+  },
+  "2378": {
+    "name": "docker-swarm-tls",
+    "description": "Docker Swarm TLS",
+    "category": "cloud"
+  },
+  "4243": {
+    "name": "docker-registry",
+    "description": "Docker Registry",
+    "category": "cloud"
+  },
+  "6443": {
+    "name": "kubernetes",
+    "description": "Kubernetes API",
+    "category": "cloud"
+  },
+  "10250": {
+    "name": "kubelet",
+    "description": "Kubelet",
+    "category": "cloud"
+  },
+  "10251": {
+    "name": "kube-scheduler",
+    "description": "Kube-scheduler",
+    "category": "cloud"
+  },
+  "10252": {
+    "name": "kube-controller",
+    "description": "Kube-controller",
+    "category": "cloud"
+  },
+  "10255": {
+    "name": "kubelet-readonly",
+    "description": "Kubelet Read-only",
+    "category": "cloud"
+  },
+  "10256": {
+    "name": "kube-proxy",
+    "description": "Kube-proxy",
+    "category": "cloud"
+  },
+  "389": {
+    "name": "ldap",
+    "description": "LDAP",
+    "category": "security"
+  },
+  "636": {
+    "name": "ldaps",
+    "description": "LDAPS",
+    "category": "security"
+  },
+  "2082": {
+    "name": "cpanel",
+    "description": "cPanel",
+    "category": "security"
+  },
+  "2083": {
+    "name": "cpanel-ssl",
+    "description": "cPanel SSL",
+    "category": "security"
+  },
+  "2086": {
+    "name": "whm",
+    "description": "Web Host Manager",
+    "category": "security"
+  },
+  "2087": {
+    "name": "whm-ssl",
+    "description": "Web Host Manager SSL",
+    "category": "security"
+  },
+  "2222": {
+    "name": "directadmin",
+    "description": "DirectAdmin",
+    "category": "security"
+  },
+  "10000": {
+    "name": "webmin",
+    "description": "Webmin",
+    "category": "security"
+  }
+}

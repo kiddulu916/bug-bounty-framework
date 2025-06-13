@@ -8,7 +8,7 @@ This module provides repository classes for each model, handling:
 - Result aggregation
 """
 
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import List, Optional, Dict, Any, Union
 from sqlalchemy import and_, or_, desc, func, update
 from sqlalchemy.orm import Session
@@ -65,7 +65,7 @@ class ScanSessionRepository(BaseRepository):
         """Get all active scan sessions."""
         return session.query(ScanSession).filter(
             ScanSession.status == 'running'
-        ).all()
+        ).order_by(ScanSession.start_time.desc()).all()
         
     @db_manager.execute_in_transaction
     def get_sessions_by_target(self, session: Session, target: str) -> List[ScanSession]:
@@ -125,6 +125,14 @@ class ScanSessionRepository(BaseRepository):
             'stage_stats': stage_stats
         }
 
+    @db_manager.execute_in_transaction
+    def update_session_status(self, session: Session, session_id: int, status: str) -> Optional[ScanSession]:
+        """Update a session's status."""
+        updates = {'status': status}
+        if status in ['completed', 'failed']:
+            updates['end_time'] = datetime.now(UTC)
+        return self.update(session, session_id, **updates)
+
 class PluginResultRepository(BaseRepository):
     """Repository for plugin results."""
     
@@ -144,6 +152,14 @@ class PluginResultRepository(BaseRepository):
         return session.query(PluginResult).filter(
             PluginResult.plugin_name == plugin_name
         ).order_by(desc(PluginResult.start_time)).all()
+        
+    @db_manager.execute_in_transaction
+    def update_result_status(self, session: Session, result_id: int, status: str) -> Optional[PluginResult]:
+        """Update a result's status."""
+        updates = {'status': status}
+        if status in ['completed', 'failed']:
+            updates['end_time'] = datetime.now(UTC)
+        return self.update(session, result_id, **updates)
 
 class FindingRepository(BaseRepository):
     """Repository for findings."""
@@ -153,7 +169,7 @@ class FindingRepository(BaseRepository):
         
     @db_manager.execute_in_transaction
     def get_finding(self, session: Session, root_domain: str, subdomain: str) -> Optional[Finding]:
-        """Get a specific finding by root domain and subdomain."""
+        """Get a finding by domain and subdomain."""
         return session.query(Finding).filter(
             and_(
                 Finding.root_domain == root_domain,
@@ -162,8 +178,8 @@ class FindingRepository(BaseRepository):
         ).first()
         
     @db_manager.execute_in_transaction
-    def get_findings_by_domain(self, session: Session, root_domain: str) -> List[Finding]:
-        """Get all findings for a root domain."""
+    def get_domain_findings(self, session: Session, root_domain: str) -> List[Finding]:
+        """Get all findings for a domain."""
         return session.query(Finding).filter(
             Finding.root_domain == root_domain
         ).order_by(Finding.last_seen.desc()).all()
@@ -202,7 +218,7 @@ class FindingRepository(BaseRepository):
         finding = session.query(Finding).get(finding_id)
         if finding:
             finding.status = status
-            finding.last_seen = datetime.utcnow()
+            finding.last_seen = datetime.now(UTC)
         return finding
         
     @db_manager.execute_in_transaction
@@ -221,7 +237,7 @@ class FindingRepository(BaseRepository):
                     finding.metadata = {**existing_metadata, **new_metadata}
                 elif key == 'last_seen':
                     # Always update last_seen
-                    finding.last_seen = datetime.utcnow()
+                    finding.last_seen = datetime.now(UTC)
                 elif key != 'id' and key != 'first_seen':
                     # Update other fields
                     setattr(finding, key, value)
@@ -234,7 +250,7 @@ class FindingRepository(BaseRepository):
     @db_manager.execute_in_transaction
     def get_findings_summary(self, session: Session, root_domain: str) -> Dict[str, Any]:
         """Get summary statistics for findings of a root domain."""
-        findings = self.get_findings_by_domain(session, root_domain)
+        findings = self.get_domain_findings(session, root_domain)
         
         # Calculate statistics
         total_findings = len(findings)

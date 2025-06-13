@@ -16,7 +16,7 @@ from dataclasses import dataclass
 
 from bbf.core.database.service import scan_service, finding_service
 from bbf.core.database.models import ScanSession, PluginResult
-from bbf.core.plugins.base import BasePlugin
+from bbf.plugins.base import BasePlugin
 
 # Configure logging
 logger = logging.getLogger(__name__)

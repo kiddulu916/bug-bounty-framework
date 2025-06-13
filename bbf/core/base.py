@@ -1,13 +1,15 @@
 """
-Base plugin class for the Bug Bounty Framework.
+Base classes for the bug bounty framework.
 
-This module defines the BasePlugin class that all plugins must inherit from.
+This module contains the base classes that define the core interfaces
+and functionality for plugins, stages, and services.
 """
 
 import abc
 import logging
-from datetime import datetime
-from typing import Dict, List, Optional, Any, Type, Set, Callable, Awaitable
+import inspect
+from datetime import datetime, UTC
+from typing import Dict, List, Optional, Any, Type, Set, Callable, Awaitable, Union
 
 from bbf.core.exceptions import (
     PluginError,
@@ -40,7 +42,7 @@ def plugin_method(method: PluginMethod) -> PluginMethod:
     """
     async def wrapper(self, *args, **kwargs):
         method_name = method.__name__
-        start_time = datetime.utcnow()
+        start_time = datetime.now(UTC)
         
         try:
             self.log.debug(f"Entering {method_name}")
@@ -48,7 +50,7 @@ def plugin_method(method: PluginMethod) -> PluginMethod:
             self.log.debug(f"Exiting {method_name}")
             
             # Update execution time
-            end_time = datetime.utcnow()
+            end_time = datetime.now(UTC)
             execution_time = (end_time - start_time).total_seconds()
             self._execution_times[method_name] = execution_time
             
@@ -60,6 +62,29 @@ def plugin_method(method: PluginMethod) -> PluginMethod:
             raise
     
     return wrapper
+
+
+class BaseService(abc.ABC):
+    """Base class for all services in the framework."""
+    
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        self.config = config or {}
+        self._initialized = False
+    
+    @abc.abstractmethod
+    async def initialize(self) -> None:
+        """Initialize the service."""
+        pass
+    
+    @abc.abstractmethod
+    async def cleanup(self) -> None:
+        """Clean up resources used by the service."""
+        pass
+    
+    @property
+    def is_initialized(self) -> bool:
+        """Check if the service is initialized."""
+        return self._initialized
 
 
 class BasePlugin(metaclass=abc.ABCMeta):
@@ -192,40 +217,62 @@ class BasePlugin(metaclass=abc.ABCMeta):
         """
         self._results[key] = value
     
-    def add_error(self, error: Exception) -> None:
+    def add_error(self, error: Union[str, Exception]) -> None:
         """
         Add an error to the plugin's error list.
         
         Args:
-            error: The exception that occurred
+            error: The error message or exception
         """
-        self._errors.append(error)
-        self.log.error(f"Error in plugin {self.name}: {str(error)}", exc_info=True)
+        error_msg = str(error)
+        self._errors.append({
+            'method': inspect.currentframe().f_back.f_code.co_name,
+            'error': error_msg,
+            'timestamp': datetime.now(UTC).isoformat()
+        })
+        self._metrics['error_count'] += 1
+        self._metrics['last_error'] = error_msg
+        self.log.error(f"Error in {self.name}: {error_msg}", exc_info=isinstance(error, Exception))
     
     @property
     def results(self) -> Dict[str, Any]:
         """Get the plugin's results."""
-        return self._results
+        return self._results.copy()
     
     @property
-    def errors(self) -> List[Exception]:
+    def errors(self) -> List[Dict[str, str]]:
         """Get the plugin's errors."""
-        return self._errors
+        return self._errors.copy()
     
     @property
     def state(self) -> Dict[str, Any]:
         """Get the plugin's state."""
-        return self._state
+        return {
+            'status': self._status,
+            'initialized': self._initialized,
+            'dependencies_met': self._dependencies_met,
+            'start_time': self._start_time.isoformat() if self._start_time else None,
+            'end_time': self._end_time.isoformat() if self._end_time else None,
+            'metrics': self._metrics.copy()
+        }
     
     @state.setter
     def state(self, value: Dict[str, Any]) -> None:
         """Set the plugin's state."""
-        self._state = value
+        self._status = value.get('status', self._status)
+        self._initialized = value.get('initialized', self._initialized)
+        self._dependencies_met = value.get('dependencies_met', self._dependencies_met)
+        if 'start_time' in value and value['start_time']:
+            self._start_time = datetime.fromisoformat(value['start_time'])
+        if 'end_time' in value and value['end_time']:
+            self._end_time = datetime.fromisoformat(value['end_time'])
+        if 'metrics' in value:
+            self._metrics.update(value['metrics'])
     
     def __str__(self) -> str:
         """String representation of the plugin."""
         return f"{self.name} (v{self.version}): {self.description}"
-
+    
     def _process_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """
         Process and validate plugin configuration.
@@ -259,7 +306,7 @@ class BasePlugin(metaclass=abc.ABCMeta):
             return
             
         self._status = "initializing"
-        self._start_time = datetime.utcnow()
+        self._start_time = datetime.now(UTC)
         
         try:
             # Verify required attributes
@@ -279,7 +326,7 @@ class BasePlugin(metaclass=abc.ABCMeta):
             self._errors.append({
                 'method': 'initialize',
                 'error': str(e),
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(UTC).isoformat()
             })
             self.log.error(f"Failed to initialize plugin: {e}", exc_info=True)
             raise PluginError(f"Plugin initialization failed: {e}") from e
@@ -309,7 +356,7 @@ class BasePlugin(metaclass=abc.ABCMeta):
             self._errors.append({
                 'method': 'check_dependencies',
                 'error': error_msg,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(UTC).isoformat()
             })
             raise PluginDependencyError(error_msg)
         
@@ -334,4 +381,97 @@ class BasePlugin(metaclass=abc.ABCMeta):
         Raises:
             PluginError: If execution fails
         """
-        raise NotImplementedError("Plugin must implement execute() method") 
+        raise NotImplementedError("Plugin must implement execute() method")
+    
+    async def cleanup(self) -> None:
+        """
+        Clean up resources used by the plugin.
+        
+        This method is called when the plugin is being unloaded or when
+        the framework is shutting down. It should be used to release any
+        resources (e.g., file handles, network connections) that the plugin
+        has acquired.
+        """
+        self._end_time = datetime.now(UTC)
+        self._status = "cleaned_up"
+        
+        if self._start_time and self._end_time:
+            execution_time = (self._end_time - self._start_time).total_seconds()
+            self._metrics['end_time'] = self._end_time.isoformat()
+            self._metrics['average_time'] = (
+                (self._metrics['average_time'] * (self._metrics['execution_count'] - 1) + execution_time) /
+                self._metrics['execution_count']
+                if self._metrics['execution_count'] > 0 else execution_time
+            )
+    
+    @property
+    def status(self) -> str:
+        """Get the current status of the plugin."""
+        return self._status
+    
+    @property
+    def metrics(self) -> Dict[str, Any]:
+        """Get performance metrics for the plugin."""
+        return self._metrics.copy()
+
+
+class BaseStage(abc.ABC):
+    """Base class for all stages in the framework."""
+    
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        self.config = config or {}
+        self._plugins: List[BasePlugin] = []
+        self._initialized = False
+        self._execution_count = 0
+        self._last_execution: Optional[datetime] = None
+        self._execution_times: List[float] = []
+    
+    @abc.abstractmethod
+    async def initialize(self) -> None:
+        """Initialize the stage."""
+        pass
+    
+    @abc.abstractmethod
+    async def execute(self, target: Any, **kwargs) -> Any:
+        """Execute the stage."""
+        pass
+    
+    @abc.abstractmethod
+    async def cleanup(self) -> None:
+        """Clean up resources used by the stage."""
+        pass
+    
+    async def add_plugin(self, plugin: BasePlugin) -> None:
+        """Add a plugin to the stage."""
+        self._plugins.append(plugin)
+    
+    async def remove_plugin(self, plugin: BasePlugin) -> None:
+        """Remove a plugin from the stage."""
+        self._plugins.remove(plugin)
+    
+    @property
+    def plugins(self) -> List[BasePlugin]:
+        """Get the list of plugins in this stage."""
+        return self._plugins.copy()
+    
+    @property
+    def is_initialized(self) -> bool:
+        """Check if the stage is initialized."""
+        return self._initialized
+    
+    @property
+    def execution_count(self) -> int:
+        """Get the number of times this stage has been executed."""
+        return self._execution_count
+    
+    @property
+    def last_execution(self) -> Optional[datetime]:
+        """Get the timestamp of the last execution."""
+        return self._last_execution
+    
+    @property
+    def average_execution_time(self) -> float:
+        """Get the average execution time of this stage."""
+        if not self._execution_times:
+            return 0.0
+        return sum(self._execution_times) / len(self._execution_times) 

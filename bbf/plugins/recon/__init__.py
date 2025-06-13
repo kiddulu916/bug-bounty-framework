@@ -8,10 +8,8 @@ This package contains plugins for the reconnaissance stage, including:
 - Web technology detection
 """
 
-from .subdomain import SubdomainEnumPlugin
-from .portscan import PortScanPlugin
+from .port_scan import PortScannerPlugin
 
 __all__ = [
-    'SubdomainEnumPlugin',
-    'PortScanPlugin',
+    'PortScannerPlugin',
 ] 

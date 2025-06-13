@@ -9,13 +9,11 @@ The recon package contains plugins for the reconnaissance stage:
 - PortScanPlugin: For scanning ports and detecting services
 """
 
-from .base_plugin import BasePlugin
-from .recon.subdomain import SubdomainEnumPlugin
-from .recon.portscan import PortScanPlugin
+from .base import BasePlugin
+from .recon.port_scan import PortScannerPlugin
 
 # Export base plugin and recon plugins
 __all__ = [
     'BasePlugin',
-    'SubdomainEnumPlugin',
-    'PortScanPlugin',
+    'PortScannerPlugin',
 ]

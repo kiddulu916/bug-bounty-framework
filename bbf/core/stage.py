@@ -1,308 +1,369 @@
 """
-Base stage implementation for the Bug Bounty Framework.
+Stage module for the bug bounty framework.
 
-This module provides the base Stage class that all stages must inherit from.
-Stages represent distinct phases of security testing (e.g., reconnaissance,
-vulnerability scanning, exploitation testing).
+This module provides the Stage class that represents a stage in the framework's
+execution pipeline, such as reconnaissance, scanning, or testing.
 """
 
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
 import asyncio
 import logging
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Set, Union
 
-from bbf.core.exceptions import StageError, StageExecutionError, StageValidationError
-from bbf.core.plugin import PluginRegistry
+from bbf.core.base import BaseService, BaseStage
+from bbf.core.exceptions import StageError
 
 logger = logging.getLogger(__name__)
 
-class Stage(ABC):
-    """Base class for all stages in the Bug Bounty Framework.
-    
-    A stage represents a distinct phase of security testing (e.g., reconnaissance,
-    vulnerability scanning, exploitation testing). Each stage can execute multiple
-    plugins in parallel and aggregate their results.
-    
-    Attributes:
-        name (str): The name of the stage.
-        description (str): A description of what the stage does.
-        enabled (bool): Whether the stage is enabled.
-        required_previous_stages (List[str]): List of stages that must be completed before this stage.
-        required_plugins (List[str]): List of plugins that must be available for this stage.
-        timeout (int): Maximum time in seconds for the stage to complete.
-    """
-    
-    name: str
-    description: str
-    enabled: bool = True
-    required_previous_stages: List[str] = []
-    required_plugins: List[str] = []
-    timeout: int = 3600  # 1 hour default timeout
+class Stage(BaseStage):
+    """Base class for all stages in the framework."""
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """Initialize the stage.
+        super().__init__(config)
         
-        Args:
-            config: Optional configuration dictionary for the stage.
-        """
-        self.config = config or {}
-        self._validate_config()
-        self._state: Dict[str, Any] = {}
-        self._results: Dict[str, Any] = {}
-        self._start_time: Optional[datetime] = None
-        self._end_time: Optional[datetime] = None
-        self._plugins: List[str] = []
-        self._plugin_registry = PluginRegistry()
+        # Stage state
+        self._plugins: Dict[str, Any] = {}
+        self._targets: Dict[str, Dict[str, Any]] = {}
+        self._findings: Dict[str, List[Dict[str, Any]]] = {}
+        self._execution_history: List[Dict[str, Any]] = []
         
-    def _validate_config(self) -> None:
-        """Validate the stage configuration.
-        
-        Raises:
-            StageValidationError: If the configuration is invalid.
-        """
-        if not self.name:
-            raise StageValidationError("Stage name is required")
-        if not self.description:
-            raise StageValidationError("Stage description is required")
-            
-        # Validate timeout
-        if 'timeout' in self.config:
-            try:
-                timeout = int(self.config['timeout'])
-                if timeout <= 0:
-                    raise StageValidationError("Timeout must be positive")
-                self.timeout = timeout
-            except (TypeError, ValueError):
-                raise StageValidationError("Timeout must be an integer")
-                
-        # Validate enabled state
-        if 'enabled' in self.config:
-            if not isinstance(self.config['enabled'], bool):
-                raise StageValidationError("Enabled must be a boolean")
-            self.enabled = self.config['enabled']
-            
-        # Validate required stages
-        if 'required_previous_stages' in self.config:
-            if not isinstance(self.config['required_previous_stages'], list):
-                raise StageValidationError("Required previous stages must be a list")
-            self.required_previous_stages = self.config['required_previous_stages']
-            
-        # Validate required plugins
-        if 'required_plugins' in self.config:
-            if not isinstance(self.config['required_plugins'], list):
-                raise StageValidationError("Required plugins must be a list")
-            self.required_plugins = self.config['required_plugins']
-            
+        # Stage settings
+        self.max_concurrent_plugins = self.config.get('max_concurrent_plugins', 3)
+        self.plugin_timeout = self.config.get('plugin_timeout', 1800)  # 30 minutes
+        self.retry_count = self.config.get('retry_count', 3)
+        self.retry_delay = self.config.get('retry_delay', 60)  # 1 minute
+    
     async def initialize(self) -> None:
-        """Initialize the stage.
+        """Initialize the stage."""
+        if self._initialized:
+            return
         
-        This method is called before the stage is executed. It should:
-        1. Validate that all required plugins are available
-        2. Initialize any resources needed by the stage
-        3. Set up the stage state
+        logger.info(f"Initializing stage: {self.name}")
         
-        Raises:
-            StageError: If initialization fails.
-        """
         try:
-            # Check required plugins
-            for plugin_name in self.required_plugins:
-                if not self._plugin_registry.get_plugin(plugin_name):
-                    raise StageError(f"Required plugin {plugin_name} not found")
-                    
-            # Initialize stage state
-            self._state = {
-                'status': 'initialized',
-                'start_time': None,
-                'end_time': None,
-                'error': None,
-                'results': {}
-            }
+            # Initialize plugins
+            await self._initialize_plugins()
             
-            # Call stage-specific initialization
-            await self._initialize()
+            self._initialized = True
+            logger.info(f"Stage {self.name} initialized successfully")
             
         except Exception as e:
             logger.error(f"Failed to initialize stage {self.name}: {str(e)}")
-            raise StageError(f"Stage initialization failed: {str(e)}")
-            
-    @abstractmethod
-    async def _initialize(self) -> None:
-        """Stage-specific initialization.
-        
-        This method should be implemented by subclasses to perform any
-        stage-specific initialization.
-        """
-        pass
-        
-    async def execute(self, target: str, **kwargs) -> Dict[str, Any]:
-        """Execute the stage.
-        
-        This method:
-        1. Initializes the stage
-        2. Executes all enabled plugins in parallel
-        3. Aggregates the results
-        4. Cleans up resources
-        
-        Args:
-            target: The target to test (e.g., domain name, IP address).
-            **kwargs: Additional arguments for the stage.
-            
-        Returns:
-            Dict containing the stage results.
-            
-        Raises:
-            StageExecutionError: If execution fails.
-        """
-        if not self.enabled:
-            logger.info(f"Stage {self.name} is disabled, skipping execution")
-            return {}
-            
-        try:
-            # Initialize stage
-            await self.initialize()
-            
-            # Record start time
-            self._start_time = datetime.now()
-            self._state['start_time'] = self._start_time
-            
-            # Execute stage
-            logger.info(f"Executing stage {self.name} on target {target}")
-            self._state['status'] = 'running'
-            
-            # Execute plugins in parallel
-            tasks = []
-            for plugin_name in self._plugins:
-                plugin = self._plugin_registry.get_plugin(plugin_name)
-                if plugin and plugin.enabled:
-                    tasks.append(self._execute_plugin(plugin, target, **kwargs))
-                    
-            if tasks:
-                results = await asyncio.gather(*tasks, return_exceptions=True)
-                
-                # Process results
-                for plugin_name, result in zip(self._plugins, results):
-                    if isinstance(result, Exception):
-                        logger.error(f"Plugin {plugin_name} failed: {str(result)}")
-                        self._state['error'] = str(result)
-                    else:
-                        self._results[plugin_name] = result
-                        
-            # Call stage-specific execution
-            await self._execute(target, **kwargs)
-            
-            # Record end time
-            self._end_time = datetime.now()
-            self._state['end_time'] = self._end_time
-            self._state['status'] = 'completed'
-            
-            # Clean up
             await self.cleanup()
+            raise StageError(f"Initialization failed: {str(e)}")
+    
+    async def cleanup(self) -> None:
+        """Clean up stage resources."""
+        if not self._initialized:
+            return
+        
+        logger.info(f"Cleaning up stage: {self.name}")
+        
+        try:
+            # Clean up plugins
+            for plugin in self._plugins.values():
+                await plugin.cleanup()
+            self._plugins.clear()
             
-            return {
-                'stage': self.name,
-                'status': self._state['status'],
-                'start_time': self._start_time,
-                'end_time': self._end_time,
-                'error': self._state['error'],
-                'results': self._results
+            # Clear state
+            self._targets.clear()
+            self._findings.clear()
+            self._execution_history.clear()
+            
+            self._initialized = False
+            logger.info(f"Stage {self.name} cleaned up successfully")
+            
+        except Exception as e:
+            logger.error(f"Error cleaning up stage {self.name}: {str(e)}")
+            raise StageError(f"Cleanup failed: {str(e)}")
+    
+    async def register_plugin(self, plugin: Any) -> None:
+        """Register a plugin in the stage."""
+        if not self._initialized:
+            raise StageError("Stage not initialized")
+        
+        if plugin.name in self._plugins:
+            raise StageError(f"Plugin already registered: {plugin.name}")
+        
+        try:
+            await plugin.initialize()
+            self._plugins[plugin.name] = plugin
+            logger.info(f"Registered plugin in stage {self.name}: {plugin.name}")
+            
+        except Exception as e:
+            raise StageError(f"Failed to register plugin: {str(e)}")
+    
+    async def add_target(self, target: Dict[str, Any]) -> str:
+        """Add a target to the stage."""
+        if not self._initialized:
+            raise StageError("Stage not initialized")
+        
+        try:
+            # Generate target ID
+            target_id = f"target_{len(self._targets) + 1}"
+            
+            # Store target
+            self._targets[target_id] = {
+                **target,
+                'status': 'pending',
+                'created_at': datetime.utcnow().isoformat(),
+                'updated_at': datetime.utcnow().isoformat()
             }
             
+            logger.info(f"Added target to stage {self.name}: {target_id}")
+            return target_id
+            
         except Exception as e:
-            logger.error(f"Stage {self.name} execution failed: {str(e)}")
-            self._state['status'] = 'failed'
-            self._state['error'] = str(e)
-            self._end_time = datetime.now()
-            self._state['end_time'] = self._end_time
-            await self.cleanup()
-            raise StageExecutionError(f"Stage execution failed: {str(e)}")
-            
-    @abstractmethod
-    async def _execute(self, target: str, **kwargs) -> None:
-        """Stage-specific execution.
+            raise StageError(f"Failed to add target: {str(e)}")
+    
+    async def execute(
+        self,
+        target_ids: Optional[List[str]] = None,
+        plugin_names: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """Execute the stage for specified targets and plugins."""
+        if not self._initialized:
+            raise StageError("Stage not initialized")
         
-        This method should be implemented by subclasses to perform any
-        stage-specific execution logic.
+        if not target_ids:
+            target_ids = list(self._targets.keys())
         
-        Args:
-            target: The target to test.
-            **kwargs: Additional arguments for the stage.
-        """
-        pass
+        if not plugin_names:
+            plugin_names = list(self._plugins.keys())
         
-    async def _execute_plugin(self, plugin: Any, target: str, **kwargs) -> Dict[str, Any]:
-        """Execute a plugin with timeout.
+        # Validate targets and plugins
+        invalid_targets = [tid for tid in target_ids if tid not in self._targets]
+        if invalid_targets:
+            raise StageError(f"Invalid targets: {invalid_targets}")
         
-        Args:
-            plugin: The plugin to execute.
-            target: The target to test.
-            **kwargs: Additional arguments for the plugin.
-            
-        Returns:
-            Dict containing the plugin results.
-            
-        Raises:
-            StageExecutionError: If plugin execution fails or times out.
-        """
+        invalid_plugins = [p for p in plugin_names if p not in self._plugins]
+        if invalid_plugins:
+            raise StageError(f"Invalid plugins: {invalid_plugins}")
+        
+        execution_id = f"exec_{len(self._execution_history) + 1}"
+        
         try:
-            return await asyncio.wait_for(
-                plugin.execute(target, **kwargs),
-                timeout=plugin.timeout
+            # Update target statuses
+            for target_id in target_ids:
+                self._targets[target_id]['status'] = 'running'
+                self._targets[target_id]['updated_at'] = datetime.utcnow().isoformat()
+            
+            # Execute plugins
+            start_time = datetime.utcnow()
+            results = await self._execute_plugins(
+                plugin_names,
+                [self._targets[tid] for tid in target_ids]
             )
-        except asyncio.TimeoutError:
-            raise StageExecutionError(f"Plugin {plugin.name} timed out after {plugin.timeout} seconds")
+            end_time = datetime.utcnow()
+            
+            # Process results
+            for target_id, result in zip(target_ids, results):
+                if result.get('status') == 'success':
+                    # Update findings
+                    if 'findings' in result:
+                        if target_id not in self._findings:
+                            self._findings[target_id] = []
+                        self._findings[target_id].extend(result['findings'])
+                    
+                    # Update target status
+                    self._targets[target_id]['status'] = 'completed'
+                else:
+                    self._targets[target_id]['status'] = 'failed'
+                
+                self._targets[target_id]['updated_at'] = datetime.utcnow().isoformat()
+            
+            # Record execution
+            execution_record = {
+                'id': execution_id,
+                'stage': self.name,
+                'plugins': plugin_names,
+                'targets': target_ids,
+                'start_time': start_time.isoformat(),
+                'end_time': end_time.isoformat(),
+                'duration': (end_time - start_time).total_seconds(),
+                'status': 'success' if all(r.get('status') == 'success' for r in results) else 'failed',
+                'results': results
+            }
+            self._execution_history.append(execution_record)
+            
+            return execution_record
+            
         except Exception as e:
-            raise StageExecutionError(f"Plugin {plugin.name} failed: {str(e)}")
+            # Update target statuses on failure
+            for target_id in target_ids:
+                self._targets[target_id]['status'] = 'failed'
+                self._targets[target_id]['updated_at'] = datetime.utcnow().isoformat()
             
-    async def cleanup(self) -> None:
-        """Clean up stage resources.
+            logger.error(f"Stage execution failed: {str(e)}")
+            raise StageError(f"Stage execution failed: {str(e)}")
+    
+    async def get_target_status(self, target_id: str) -> Dict[str, Any]:
+        """Get the current status of a target."""
+        if not self._initialized:
+            raise StageError("Stage not initialized")
         
-        This method is called after the stage is executed, regardless of whether
-        execution succeeded or failed. It should clean up any resources used by
-        the stage.
+        if target_id not in self._targets:
+            raise StageError(f"Target not found: {target_id}")
         
-        Raises:
-            StageError: If cleanup fails.
-        """
-        try:
-            # Call stage-specific cleanup
-            await self._cleanup()
-            
-            # Clean up plugin resources
-            for plugin_name in self._plugins:
-                plugin = self._plugin_registry.get_plugin(plugin_name)
-                if plugin:
-                    try:
-                        await plugin.cleanup()
-                    except Exception as e:
-                        logger.error(f"Plugin {plugin_name} cleanup failed: {str(e)}")
-                        
-        except Exception as e:
-            logger.error(f"Stage {self.name} cleanup failed: {str(e)}")
-            raise StageError(f"Stage cleanup failed: {str(e)}")
-            
-    @abstractmethod
-    async def _cleanup(self) -> None:
-        """Stage-specific cleanup.
+        return {
+            'id': target_id,
+            'status': self._targets[target_id]['status'],
+            'findings': self._findings.get(target_id, []),
+            'created_at': self._targets[target_id]['created_at'],
+            'updated_at': self._targets[target_id]['updated_at']
+        }
+    
+    async def get_execution_history(
+        self,
+        plugin_name: Optional[str] = None,
+        target_id: Optional[str] = None,
+        limit: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """Get execution history with optional filtering."""
+        if not self._initialized:
+            raise StageError("Stage not initialized")
         
-        This method should be implemented by subclasses to perform any
-        stage-specific cleanup.
-        """
+        # Filter executions
+        filtered_history = self._execution_history
+        
+        if plugin_name:
+            filtered_history = [
+                e for e in filtered_history
+                if plugin_name in e['plugins']
+            ]
+        
+        if target_id:
+            filtered_history = [
+                e for e in filtered_history
+                if target_id in e['targets']
+            ]
+        
+        # Apply limit
+        if limit is not None:
+            filtered_history = filtered_history[-limit:]
+        
+        return filtered_history
+    
+    async def _initialize_plugins(self) -> None:
+        """Initialize stage plugins."""
+        # This method should be overridden by subclasses to initialize
+        # stage-specific plugins
         pass
+    
+    async def _execute_plugins(
+        self,
+        plugin_names: List[str],
+        targets: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Execute plugins for targets."""
+        results = []
         
-    def get_state(self) -> Dict[str, Any]:
-        """Get the current stage state.
+        # Create execution tasks
+        tasks = []
+        for target in targets:
+            target_tasks = []
+            for plugin_name in plugin_names:
+                plugin = self._plugins[plugin_name]
+                task = asyncio.create_task(
+                    self._execute_plugin_with_retry(plugin, target)
+                )
+                target_tasks.append(task)
+            tasks.append(asyncio.gather(*target_tasks))
         
-        Returns:
-            Dict containing the current stage state.
-        """
-        return self._state.copy()
+        # Execute tasks with concurrency limit
+        semaphore = asyncio.Semaphore(self.max_concurrent_plugins)
+        async def execute_with_semaphore(task):
+            async with semaphore:
+                return await task
         
-    def get_results(self) -> Dict[str, Any]:
-        """Get the stage results.
+        # Wait for all tasks to complete
+        for target_tasks in tasks:
+            try:
+                target_results = await asyncio.gather(
+                    *[execute_with_semaphore(task) for task in target_tasks],
+                    return_exceptions=True
+                )
+                
+                # Process results
+                target_status = 'success'
+                target_findings = []
+                
+                for result in target_results:
+                    if isinstance(result, Exception):
+                        target_status = 'failed'
+                        logger.error(f"Plugin execution failed: {str(result)}")
+                    else:
+                        if result.get('status') == 'failed':
+                            target_status = 'failed'
+                        if 'findings' in result:
+                            target_findings.extend(result['findings'])
+                
+                results.append({
+                    'status': target_status,
+                    'findings': target_findings
+                })
+                
+            except Exception as e:
+                logger.error(f"Target execution failed: {str(e)}")
+                results.append({
+                    'status': 'failed',
+                    'error': str(e)
+                })
         
-        Returns:
-            Dict containing the stage results.
-        """
-        return self._results.copy() 
+        return results
+    
+    async def _execute_plugin_with_retry(
+        self,
+        plugin: Any,
+        target: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Execute a plugin with retry logic."""
+        for attempt in range(self.retry_count):
+            try:
+                # Execute plugin with timeout
+                async with asyncio.timeout(self.plugin_timeout):
+                    result = await plugin.execute(target)
+                    return {
+                        'status': 'success',
+                        'plugin': plugin.name,
+                        **result
+                    }
+                
+            except asyncio.TimeoutError:
+                logger.warning(
+                    f"Plugin {plugin.name} timed out after {self.plugin_timeout}s"
+                )
+                if attempt < self.retry_count - 1:
+                    await asyncio.sleep(self.retry_delay)
+                    continue
+                return {
+                    'status': 'failed',
+                    'plugin': plugin.name,
+                    'error': 'Execution timed out'
+                }
+                
+            except Exception as e:
+                logger.error(f"Plugin {plugin.name} failed: {str(e)}")
+                if attempt < self.retry_count - 1:
+                    await asyncio.sleep(self.retry_delay)
+                    continue
+                return {
+                    'status': 'failed',
+                    'plugin': plugin.name,
+                    'error': str(e)
+                }
+    
+    @property
+    def registered_plugins(self) -> Set[str]:
+        """Get the set of registered plugin names."""
+        return set(self._plugins.keys())
+    
+    @property
+    def target_count(self) -> int:
+        """Get the number of registered targets."""
+        return len(self._targets)
+    
+    @property
+    def execution_count(self) -> int:
+        """Get the number of completed executions."""
+        return len(self._execution_history) 
